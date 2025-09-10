@@ -87,22 +87,23 @@
                     throw new Error("Server not set.");
                 }
 
-                // The Authenticate method does not use existing credentials. All other methods do.
                 const finalParams = (method === 'Authenticate')
                     ? params
                     : { ...(params || {}), credentials: this.credentials };
+
+                const requestBody = JSON.stringify({
+                    method: method,
+                    params: finalParams,
+                });
 
                 const url = `https://${this.server}/api/v1`;
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
-                        // Using text/plain is a trick to avoid a CORS preflight request
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            method: method,
-                            params: finalParams,
-                        }),
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `JSON-RPC=${encodeURIComponent(requestBody)}`
                     });
 
                     if (!response.ok) {
@@ -111,7 +112,6 @@
 
                     const data = await response.json();
                     if (data.error) {
-                        // Log the full error for debugging
                         console.error("Geotab API Error:", data.error);
                         throw new Error(data.error.message || 'An unknown API error occurred.');
                     }
@@ -133,7 +133,6 @@
                 const result = await this.call('Authenticate', { database, userName, password });
                 if (result && result.credentials) {
                     this.credentials = result.credentials;
-                    // Store credentials in session storage for persistence across reloads
                     sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
                     return result.credentials;
                 }
