@@ -87,11 +87,10 @@
                     throw new Error("Server not set.");
                 }
 
-                // Add credentials to every call if they exist
-                const fullParams = {
-                    ...(params || {}),
-                    credentials: this.credentials
-                };
+                // The Authenticate method does not use existing credentials. All other methods do.
+                const finalParams = (method === 'Authenticate')
+                    ? params
+                    : { ...(params || {}), credentials: this.credentials };
 
                 const url = `https://${this.server}/api/v1`;
                 try {
@@ -102,7 +101,7 @@
                         body: JSON.stringify({
                             jsonrpc: '2.0',
                             method: method,
-                            params: fullParams,
+                            params: finalParams,
                         }),
                     });
 
@@ -129,25 +128,16 @@
 
             async authenticate(server, database, userName, password) {
                 this.server = server;
-                // Temporarily remove credentials for the Authenticate call itself
-                const tempCreds = this.credentials;
-                this.credentials = null;
+                this.credentials = null; // Clear any old credentials
 
-                try {
-                    const result = await this.call('Authenticate', { database, userName, password });
-                     if (result && result.credentials) {
-                        this.credentials = result.credentials;
-                        // Store credentials in session storage for persistence across reloads
-                        sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
-                        return result.credentials;
-                    }
-                    throw new Error('Authentication failed: Invalid credentials returned.');
-                } finally {
-                    // Restore credentials if they existed
-                    if (tempCreds) {
-                        this.credentials = tempCreds;
-                    }
+                const result = await this.call('Authenticate', { database, userName, password });
+                if (result && result.credentials) {
+                    this.credentials = result.credentials;
+                    // Store credentials in session storage for persistence across reloads
+                    sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
+                    return result.credentials;
                 }
+                throw new Error('Authentication failed: Invalid credentials returned.');
             }
 
             logout() {
