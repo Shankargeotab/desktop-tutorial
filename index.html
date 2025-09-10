@@ -6,7 +6,7 @@
   <title>Geotab Installation Verifier</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Optional favicon to silence 404 -->
+  <!-- Inline favicon (fixes 404) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧰</text></svg>">
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -33,7 +33,6 @@
         <input type="text" id="username" placeholder="Username" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
         <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
         <button type="button" id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Login</button>
-        <p class="text-xs text-gray-500 text-center">Credentials are sent directly to your Geotab server via HTTPS.</p>
       </div>
     </div>
 
@@ -72,7 +71,6 @@
       constructor() {
         this.server = null;
         this.credentials = null;
-        this.timeoutMs = 20000;
       }
 
       async call(method, params) {
@@ -81,43 +79,20 @@
         const finalParams = (method === 'Authenticate') ? params : { ...(params || {}), credentials: this.credentials };
         const requestBody = JSON.stringify({ method, params: finalParams });
 
-        // ✅ Correct endpoint (no slash): /apiv1
+        // ✅ Correct endpoint
         const url = `https://${this.server}/apiv1`;
 
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), this.timeoutMs);
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: `JSON-RPC=${encodeURIComponent(requestBody)}`
+        });
 
-        try {
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-            body: `JSON-RPC=${encodeURIComponent(requestBody)}`,
-            signal: controller.signal
-          });
+        if (!response.ok) throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
 
-          if (!response.ok) {
-            // 404 almost always means wrong path or server
-            throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
-          }
-
-          const data = await response.json();
-          if (data.error) {
-            console.error("Geotab API Error:", data.error);
-            throw new Error(data.error.message || 'Unknown API error.');
-          }
-          return data.result;
-        } catch (err) {
-          if (err.name === 'AbortError') {
-            throw new Error('Request timed out. Check network/VPN.');
-          }
-          // If CORS blocks it, fetch throws TypeError — surface a human hint
-          if (err instanceof TypeError) {
-            throw new Error('Network/CORS error. Ensure HTTPS and correct server (e.g., my.geotab.com).');
-          }
-          throw err;
-        } finally {
-          clearTimeout(id);
-        }
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message || 'Unknown API error.');
+        return data.result;
       }
 
       async get(typeName, params) {
@@ -125,7 +100,7 @@
       }
 
       async authenticate(server, database, userName, password) {
-        this.server = (server || '').replace(/^https?:\/\//, '').trim(); // force host only
+        this.server = (server || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
         this.credentials = null;
         const result = await this.call('Authenticate', { database, userName, password });
         if (result && result.credentials) {
@@ -157,17 +132,12 @@
     const loginButton = document.getElementById('login-button');
     const searchButton = document.getElementById('search-button');
 
-    // --- Diagnostics to Check ---
     const DIAGNOSTICS_TO_CHECK = {
       'Plow': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
       'Wing Plow': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
       'Spreader Active': ['DiagnosticSolidMaterialActiveId'],
       'Spreader Rate': ['DiagnosticSolidMaterialRateId'],
-      'Spreader Material': ['DiagnosticSolidMaterialTypeId'],
-      // These are examples; confirm the exact KnownIds you want:
-      'IOX Status': ['DiagnosticIoxWrksStatusId'],
-      'IOX Firmware Version': ['DiagnosticIoxWrksFirmwareVersionId'],
-      'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
+      'Spreader Material': ['DiagnosticSolidMaterialTypeId']
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -188,8 +158,7 @@
             loginSection.classList.add('hidden');
             searchSection.classList.remove('hidden');
           }
-        } catch (e) {
-          console.error("Could not parse stored credentials", e);
+        } catch {
           sessionStorage.removeItem('geotab_creds');
         }
       }
@@ -211,7 +180,7 @@
         loginSection.classList.add('hidden');
         searchSection.classList.remove('hidden');
       } catch (error) {
-        showError(`Login Failed: ${error.message}. Verify server (e.g., my.geotab.com), database, and credentials.`);
+        showError(`Login Failed: ${error.message}`);
       } finally {
         loginButton.disabled = false;
         loginButton.textContent = 'Login';
@@ -223,12 +192,6 @@
       searchSection.classList.add('hidden');
       resultsSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
-
-      document.getElementById('server').value = 'my.geotab.com';
-      document.getElementById('database').value = '';
-      document.getElementById('username').value = '';
-      document.getElementById('password').value = '';
-      document.getElementById('vehicle-id').value = '';
     }
 
     async function handleSearch() {
@@ -245,55 +208,29 @@
       }
 
       try {
-        // Try SerialNumber, fallback to VIN
         let devices = await api.get('Device', { search: { serialNumber: vehicleId } });
-        if (!devices || devices.length === 0) {
-          devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
-        }
-        if (!devices || devices.length === 0) {
-          throw new Error(`No device found with VIN/Serial: "${vehicleId}"`);
-        }
+        if (!devices.length) devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
+        if (!devices.length) throw new Error(`No device found with VIN/Serial: "${vehicleId}"`);
 
         const device = devices[0];
         displayVehicleInfo(device);
 
-        const statusData = await api.get('StatusData', {
-          search: {
-            deviceSearch: { id: device.id },
-            // optional: narrow range for speed; comment out to fetch latest only from cache
-            fromDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-            toDate: new Date().toISOString()
-          }
-        });
-
-        if (!statusData || statusData.length === 0) {
-          showError("Device found, but no diagnostic data has been recorded for it yet.", "yellow");
-        }
-
+        const statusData = await api.get('StatusData', { search: { deviceSearch: { id: device.id } } });
         processDiagnostics(statusData || []);
         resultsContent.classList.remove('hidden');
-
       } catch (error) {
         showError(`Search Failed: ${error.message}`);
-        resultsContent.classList.add('hidden');
       } finally {
         hideLoading();
       }
     }
 
     function displayVehicleInfo(device) {
-      const last = device.lastCommunicated ? new Date(device.lastCommunicated).toLocaleString() : 'N/A';
-      const vin = device.vehicleIdentificationNumber || 'N/A';
-      const sn = device.serialNumber || 'N/A';
-      const name = device.name || 'N/A';
-
       vehicleInfo.innerHTML = `
-        <div class="space-y-1">
-          <p><strong>Name:</strong> <span class="mono">${name}</span></p>
-          <p><strong>VIN:</strong> <span class="mono">${vin}</span></p>
-          <p><strong>Serial Number:</strong> <span class="mono">${sn}</span></p>
-          <p><strong>Last Communicated:</strong> ${last}</p>
-        </div>
+        <p><strong>Name:</strong> ${device.name}</p>
+        <p><strong>VIN:</strong> ${device.vehicleIdentificationNumber || 'N/A'}</p>
+        <p><strong>Serial Number:</strong> ${device.serialNumber || 'N/A'}</p>
+        <p><strong>Last Communicated:</strong> ${device.lastCommunicated ? new Date(device.lastCommunicated).toLocaleString() : 'N/A'}</p>
       `;
     }
 
@@ -301,11 +238,9 @@
       diagnosticResults.innerHTML = '';
       const foundDataMap = new Map(statusData.map(item => [item.diagnostic.id, item]));
 
-      // 1) Specific diagnostics
       for (const [name, ids] of Object.entries(DIAGNOSTICS_TO_CHECK)) {
         let foundItem = null;
         let foundId = null;
-
         for (const id of ids) {
           if (foundDataMap.has(id)) {
             foundItem = foundDataMap.get(id);
@@ -313,87 +248,28 @@
             break;
           }
         }
-
-        let resultHtml = '';
         if (foundItem) {
-          resultHtml = `
-            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
-              <div>
-                <p class="font-semibold text-white">${name}</p>
-                <p class="text-xs text-gray-400 break-all mono">${foundId}</p>
-              </div>
-              <div class="text-right flex-shrink-0 ml-4">
-                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Found</span>
-                <p class="text-lg text-white mt-1 break-all mono">${foundItem.data}</p>
-                <p class="text-xs text-gray-400">${new Date(foundItem.dateTime).toLocaleString()}</p>
-              </div>
-            </div>
-          `;
+          diagnosticResults.innerHTML += `
+            <div class="bg-gray-700 p-3 rounded-md">
+              <p class="font-semibold">${name}</p>
+              <p class="text-xs text-gray-400">${foundId}</p>
+              <p class="text-lg">${foundItem.data}</p>
+              <p class="text-xs text-gray-400">${new Date(foundItem.dateTime).toLocaleString()}</p>
+            </div>`;
         } else {
-          resultHtml = `
-            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md opacity-70">
-              <div>
-                <p class="font-semibold text-white">${name}</p>
-                <p class="text-xs text-gray-400 break-all mono">${ids.join(' or ')}</p>
-              </div>
-              <span class="px-3 py-1 text-sm font-semibold text-yellow-200 bg-yellow-800 rounded-full">Not Found</span>
-            </div>
-          `;
+          diagnosticResults.innerHTML += `
+            <div class="bg-gray-700 p-3 rounded-md opacity-60">
+              <p class="font-semibold">${name}</p>
+              <p class="text-xs text-gray-400">${ids.join(' or ')}</p>
+              <span class="px-2 py-1 text-sm bg-yellow-800 rounded">Not Found</span>
+            </div>`;
         }
-        diagnosticResults.innerHTML += resultHtml;
-      }
-
-      // 2) Other active auxiliaries
-      diagnosticResults.innerHTML += `<h3 class="text-xl font-semibold my-4 border-b border-gray-700 pb-2">Other Active Auxiliaries</h3>`;
-
-      const genericAuxIds = [
-        'DiagnosticAux1Id', 'DiagnosticAux2Id', 'DiagnosticAux3Id', 'DiagnosticAux4Id',
-        'DiagnosticAux5Id', 'DiagnosticAux6Id', 'DiagnosticAux7Id', 'DiagnosticAux8Id',
-        'DiagnosticThirdPartyAux5Id', 'DiagnosticThirdPartyAux6Id', 'DiagnosticThirdPartyAux7Id', 'DiagnosticThirdPartyAux8Id'
-      ];
-
-      let activeAuxFound = false;
-      for (const item of statusData) {
-        if (genericAuxIds.includes(item.diagnostic.id) && (item.data === true || item.data > 0)) {
-          activeAuxFound = true;
-          const friendlyName = item.diagnostic.id
-            .replace('Diagnostic', '')
-            .replace('Id', '')
-            .replace(/([a-z])([A-Z0-9])/g, '$1 $2');
-
-          const block = `
-            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
-              <div>
-                <p class="font-semibold text-white">${friendlyName}</p>
-                <p class="text-xs text-gray-400 mono">${item.diagnostic.id}</p>
-              </div>
-              <div class="text-right flex-shrink-0 ml-4">
-                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Active</span>
-                <p class="text-lg text-white mt-1 mono">${item.data}</p>
-              </div>
-            </div>
-          `;
-          diagnosticResults.innerHTML += block;
-        }
-      }
-
-      if (!activeAuxFound) {
-        diagnosticResults.innerHTML += `
-          <div class="bg-gray-700 p-3 rounded-md text-center text-gray-400">
-            <p>No other standard or third-party auxiliaries are currently active.</p>
-          </div>
-        `;
       }
     }
 
     function showLoading() { loadingSpinner.classList.remove('hidden'); }
     function hideLoading() { loadingSpinner.classList.add('hidden'); }
-
-    function showError(message, level = 'red') {
-      errorMessage.textContent = message;
-      errorMessage.classList.remove('hidden', 'bg-red-800', 'bg-yellow-800');
-      errorMessage.classList.add(level === 'red' ? 'bg-red-800' : 'bg-yellow-800');
-    }
+    function showError(msg) { errorMessage.textContent = msg; errorMessage.classList.remove('hidden'); }
     function hideError() { errorMessage.classList.add('hidden'); }
   </script>
 </body>
