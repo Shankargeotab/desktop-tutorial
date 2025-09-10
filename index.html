@@ -1,417 +1,400 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geotab Installation Verifier</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .spinner {
-            border-top-color: #3498db;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        button:disabled {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geotab Installation Verifier</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Optional favicon to silence 404 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧰</text></svg>">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .spinner { border-top-color: #3498db; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg);} }
+    button:disabled { cursor: not-allowed; opacity: 0.7; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="w-full max-w-md mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-white">Geotab Installation Verifier</h1>
-            <p class="text-gray-400">Verify plow and spreader diagnostics post-installation.</p>
-        </header>
+  <div class="w-full max-w-md mx-auto">
+    <header class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-white">Geotab Installation Verifier</h1>
+      <p class="text-gray-400">Verify plow and spreader diagnostics post-installation.</p>
+    </header>
 
-        <!-- Login Form -->
-        <div id="login-section" class="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 class="text-xl font-semibold mb-4 text-center">API Login</h2>
-            <div id="login-form" class="space-y-4">
-                <input type="text" id="server" placeholder="Server (e.g., my.geotab.com)" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="my.geotab.com">
-                <input type="text" id="database" placeholder="Database Name" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="text" id="username" placeholder="Username" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button type="button" id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Login</button>
-            </div>
-        </div>
-
-        <!-- Search Section -->
-        <div id="search-section" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg mt-6">
-             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Vehicle Lookup</h2>
-                <button id="logout-button" class="text-sm text-blue-400 hover:text-blue-300">Logout</button>
-            </div>
-            <div id="search-form" class="flex flex-col sm:flex-row gap-3">
-                <input type="text" id="vehicle-id" placeholder="Enter VIN or Serial Number" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button type="button" id="search-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Fetch Details</button>
-            </div>
-        </div>
-
-        <!-- Results Section -->
-        <div id="results-section" class="hidden mt-6">
-            <div id="loading-spinner" class="hidden flex justify-center items-center p-6">
-                <div class="spinner w-12 h-12 rounded-full border-4 border-gray-600"></div>
-            </div>
-            <div id="error-message" class="hidden bg-red-800 p-4 rounded-lg text-center font-semibold"></div>
-            <div id="results-content" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg">
-                <h3 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Vehicle Details</h3>
-                <div id="vehicle-info" class="mb-6 text-gray-300"></div>
-                <h3 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Primary Diagnostic Status</h3>
-                <div id="diagnostic-results" class="space-y-2"></div>
-            </div>
-        </div>
-
+    <!-- Login Form -->
+    <div id="login-section" class="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <h2 class="text-xl font-semibold mb-4 text-center">API Login</h2>
+      <div id="login-form" class="space-y-4">
+        <input type="text" id="server" placeholder="Server (e.g., my.geotab.com)" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="my.geotab.com">
+        <input type="text" id="database" placeholder="Database Name" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="text" id="username" placeholder="Username" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button type="button" id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Login</button>
+        <p class="text-xs text-gray-500 text-center">Credentials are sent directly to your Geotab server via HTTPS.</p>
+      </div>
     </div>
 
-    <script>
-        // --- Diagnostic Message ---
-        console.log("Geotab Verifier Script Started!");
+    <!-- Search Section -->
+    <div id="search-section" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg mt-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">Vehicle Lookup</h2>
+        <button id="logout-button" class="text-sm text-blue-400 hover:text-blue-300">Logout</button>
+      </div>
+      <div id="search-form" class="flex flex-col sm:flex-row gap-3">
+        <input type="text" id="vehicle-id" placeholder="Enter VIN or Serial Number" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button type="button" id="search-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Fetch Details</button>
+      </div>
+    </div>
 
-        // --- Geotab API Wrapper ---
-        class GeotabApi {
-            constructor() {
-                this.server = null;
-                this.credentials = null;
-            }
+    <!-- Results Section -->
+    <div id="results-section" class="hidden mt-6">
+      <div id="loading-spinner" class="hidden flex justify-center items-center p-6">
+        <div class="spinner w-12 h-12 rounded-full border-4 border-gray-600"></div>
+      </div>
+      <div id="error-message" class="hidden bg-red-800 p-4 rounded-lg text-center font-semibold"></div>
+      <div id="results-content" class="hidden bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h3 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Vehicle Details</h3>
+        <div id="vehicle-info" class="mb-6 text-gray-300"></div>
+        <h3 class="text-xl font-semibold mb-4 border-b border-gray-700 pb-2">Primary Diagnostic Status</h3>
+        <div id="diagnostic-results" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
 
-            async call(method, params) {
-                if (!this.server) {
-                    throw new Error("Server not set.");
-                }
+  <script>
+    console.log("Geotab Verifier Script Started!");
 
-                const finalParams = (method === 'Authenticate')
-                    ? params
-                    : { ...(params || {}), credentials: this.credentials };
+    // --- Geotab API Wrapper ---
+    class GeotabApi {
+      constructor() {
+        this.server = null;
+        this.credentials = null;
+        this.timeoutMs = 20000;
+      }
 
-                const requestBody = JSON.stringify({
-                    method: method,
-                    params: finalParams,
-                });
+      async call(method, params) {
+        if (!this.server) throw new Error("Server not set.");
 
-                const url = `https://${this.server}/api/v1`;
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: `JSON-RPC=${encodeURIComponent(requestBody)}`
-                    });
+        const finalParams = (method === 'Authenticate') ? params : { ...(params || {}), credentials: this.credentials };
+        const requestBody = JSON.stringify({ method, params: finalParams });
 
-                    if (!response.ok) {
-                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
-                    }
+        // ✅ Correct endpoint (no slash): /apiv1
+        const url = `https://${this.server}/apiv1`;
 
-                    const data = await response.json();
-                    if (data.error) {
-                        console.error("Geotab API Error:", data.error);
-                        throw new Error(data.error.message || 'An unknown API error occurred.');
-                    }
-                    return data.result;
-                } catch (error) {
-                    console.error("API Call failed:", error);
-                    throw error;
-                }
-            }
-            
-            async get(typeName, params) {
-                return this.call('Get', { typeName, ...params });
-            }
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), this.timeoutMs);
 
-            async authenticate(server, database, userName, password) {
-                this.server = server;
-                this.credentials = null; // Clear any old credentials
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: `JSON-RPC=${encodeURIComponent(requestBody)}`,
+            signal: controller.signal
+          });
 
-                const result = await this.call('Authenticate', { database, userName, password });
-                if (result && result.credentials) {
-                    this.credentials = result.credentials;
-                    sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
-                    return result.credentials;
-                }
-                throw new Error('Authentication failed: Invalid credentials returned.');
-            }
+          if (!response.ok) {
+            // 404 almost always means wrong path or server
+            throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+          }
 
-            logout() {
-                this.credentials = null;
-                this.server = null;
-                sessionStorage.removeItem('geotab_creds');
-            }
+          const data = await response.json();
+          if (data.error) {
+            console.error("Geotab API Error:", data.error);
+            throw new Error(data.error.message || 'Unknown API error.');
+          }
+          return data.result;
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            throw new Error('Request timed out. Check network/VPN.');
+          }
+          // If CORS blocks it, fetch throws TypeError — surface a human hint
+          if (err instanceof TypeError) {
+            throw new Error('Network/CORS error. Ensure HTTPS and correct server (e.g., my.geotab.com).');
+          }
+          throw err;
+        } finally {
+          clearTimeout(id);
         }
-        
-        const api = new GeotabApi();
+      }
 
-        // --- DOM Elements ---
-        const loginSection = document.getElementById('login-section');
-        const searchSection = document.getElementById('search-section');
-        const resultsSection = document.getElementById('results-section');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const errorMessage = document.getElementById('error-message');
-        const resultsContent = document.getElementById('results-content');
-        const vehicleInfo = document.getElementById('vehicle-info');
-        const diagnosticResults = document.getElementById('diagnostic-results');
-        const loginButton = document.getElementById('login-button');
-        const searchButton = document.getElementById('search-button');
+      async get(typeName, params) {
+        return this.call('Get', { typeName, ...(params || {}) });
+      }
 
-        // --- Diagnostics to Check ---
-        const DIAGNOSTICS_TO_CHECK = {
-            'Plow': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
-            'Wing Plow': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
-            'Spreader Active': ['DiagnosticSolidMaterialActiveId'],
-            'Spreader Rate': ['DiagnosticSolidMaterialRateId'],
-            'Spreader Material': ['DiagnosticSolidMaterialTypeId'],
-            'IOX Status': ['aKZd1DTUtuEacu-uhY0CieQ'],
-            'IOX Firmware Version': ['DiagnosticIoxWrksFirmwareVersionId'],
-            'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
-        };
-        
-        // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', () => {
-             console.log("DOM fully loaded. Initializing app.");
-             checkSession();
-             loginButton.addEventListener('click', handleLogin);
-             searchButton.addEventListener('click', handleSearch);
-             document.getElementById('logout-button').addEventListener('click', handleLogout);
+      async authenticate(server, database, userName, password) {
+        this.server = (server || '').replace(/^https?:\/\//, '').trim(); // force host only
+        this.credentials = null;
+        const result = await this.call('Authenticate', { database, userName, password });
+        if (result && result.credentials) {
+          this.credentials = result.credentials;
+          sessionStorage.setItem('geotab_creds', JSON.stringify({ server: this.server, credentials: result.credentials }));
+          return result.credentials;
+        }
+        throw new Error('Authentication failed: Invalid credentials returned.');
+      }
+
+      logout() {
+        this.credentials = null;
+        this.server = null;
+        sessionStorage.removeItem('geotab_creds');
+      }
+    }
+
+    const api = new GeotabApi();
+
+    // --- DOM Elements ---
+    const loginSection = document.getElementById('login-section');
+    const searchSection = document.getElementById('search-section');
+    const resultsSection = document.getElementById('results-section');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const errorMessage = document.getElementById('error-message');
+    const resultsContent = document.getElementById('results-content');
+    const vehicleInfo = document.getElementById('vehicle-info');
+    const diagnosticResults = document.getElementById('diagnostic-results');
+    const loginButton = document.getElementById('login-button');
+    const searchButton = document.getElementById('search-button');
+
+    // --- Diagnostics to Check ---
+    const DIAGNOSTICS_TO_CHECK = {
+      'Plow': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
+      'Wing Plow': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
+      'Spreader Active': ['DiagnosticSolidMaterialActiveId'],
+      'Spreader Rate': ['DiagnosticSolidMaterialRateId'],
+      'Spreader Material': ['DiagnosticSolidMaterialTypeId'],
+      // These are examples; confirm the exact KnownIds you want:
+      'IOX Status': ['DiagnosticIoxWrksStatusId'],
+      'IOX Firmware Version': ['DiagnosticIoxWrksFirmwareVersionId'],
+      'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkSession();
+      loginButton.addEventListener('click', handleLogin);
+      searchButton.addEventListener('click', handleSearch);
+      document.getElementById('logout-button').addEventListener('click', handleLogout);
+    });
+
+    function checkSession() {
+      const storedCreds = sessionStorage.getItem('geotab_creds');
+      if (storedCreds) {
+        try {
+          const { server, credentials } = JSON.parse(storedCreds);
+          if (server && credentials) {
+            api.server = server;
+            api.credentials = credentials;
+            loginSection.classList.add('hidden');
+            searchSection.classList.remove('hidden');
+          }
+        } catch (e) {
+          console.error("Could not parse stored credentials", e);
+          sessionStorage.removeItem('geotab_creds');
+        }
+      }
+    }
+
+    async function handleLogin() {
+      loginButton.disabled = true;
+      loginButton.textContent = 'Logging in...';
+      hideError();
+      resultsSection.classList.add('hidden');
+
+      const server = document.getElementById('server').value.trim();
+      const database = document.getElementById('database').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        await api.authenticate(server, database, username, password);
+        loginSection.classList.add('hidden');
+        searchSection.classList.remove('hidden');
+      } catch (error) {
+        showError(`Login Failed: ${error.message}. Verify server (e.g., my.geotab.com), database, and credentials.`);
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = 'Login';
+      }
+    }
+
+    function handleLogout() {
+      api.logout();
+      searchSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+
+      document.getElementById('server').value = 'my.geotab.com';
+      document.getElementById('database').value = '';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('vehicle-id').value = '';
+    }
+
+    async function handleSearch() {
+      hideError();
+      resultsContent.classList.add('hidden');
+      resultsSection.classList.remove('hidden');
+      showLoading();
+
+      const vehicleId = document.getElementById('vehicle-id').value.trim();
+      if (!vehicleId) {
+        showError("Please enter a VIN or Serial Number.");
+        hideLoading();
+        return;
+      }
+
+      try {
+        // Try SerialNumber, fallback to VIN
+        let devices = await api.get('Device', { search: { serialNumber: vehicleId } });
+        if (!devices || devices.length === 0) {
+          devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
+        }
+        if (!devices || devices.length === 0) {
+          throw new Error(`No device found with VIN/Serial: "${vehicleId}"`);
+        }
+
+        const device = devices[0];
+        displayVehicleInfo(device);
+
+        const statusData = await api.get('StatusData', {
+          search: {
+            deviceSearch: { id: device.id },
+            // optional: narrow range for speed; comment out to fetch latest only from cache
+            fromDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            toDate: new Date().toISOString()
+          }
         });
 
-        // --- Functions ---
-        
-        function checkSession() {
-            const storedCreds = sessionStorage.getItem('geotab_creds');
-            if (storedCreds) {
-                try {
-                    const { server, credentials } = JSON.parse(storedCreds);
-                    if (server && credentials) {
-                        api.server = server;
-                        api.credentials = credentials;
-                        loginSection.classList.add('hidden');
-                        searchSection.classList.remove('hidden');
-                    }
-                } catch (e) {
-                    console.error("Could not parse stored credentials", e);
-                    sessionStorage.removeItem('geotab_creds');
-                }
-            }
-        }
-        
-        function handleLogin() {
-            loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
-
-            hideError();
-            resultsSection.classList.add('hidden');
-
-            const server = document.getElementById('server').value.trim();
-            const database = document.getElementById('database').value.trim();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-
-            api.authenticate(server, database, username, password)
-                .then(() => {
-                    loginSection.classList.add('hidden');
-                    searchSection.classList.remove('hidden');
-                })
-                .catch(error => {
-                    showError(`Login Failed: ${error.message}. Please check credentials and database name.`);
-                })
-                .finally(() => {
-                    loginButton.disabled = false;
-                    loginButton.textContent = 'Login';
-                });
+        if (!statusData || statusData.length === 0) {
+          showError("Device found, but no diagnostic data has been recorded for it yet.", "yellow");
         }
 
-        function handleLogout() {
-            api.logout();
-            searchSection.classList.add('hidden');
-            resultsSection.classList.add('hidden');
-            loginSection.classList.remove('hidden');
-            
-            document.getElementById('server').value = 'my.geotab.com';
-            document.getElementById('database').value = '';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('vehicle-id').value = '';
+        processDiagnostics(statusData || []);
+        resultsContent.classList.remove('hidden');
+
+      } catch (error) {
+        showError(`Search Failed: ${error.message}`);
+        resultsContent.classList.add('hidden');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function displayVehicleInfo(device) {
+      const last = device.lastCommunicated ? new Date(device.lastCommunicated).toLocaleString() : 'N/A';
+      const vin = device.vehicleIdentificationNumber || 'N/A';
+      const sn = device.serialNumber || 'N/A';
+      const name = device.name || 'N/A';
+
+      vehicleInfo.innerHTML = `
+        <div class="space-y-1">
+          <p><strong>Name:</strong> <span class="mono">${name}</span></p>
+          <p><strong>VIN:</strong> <span class="mono">${vin}</span></p>
+          <p><strong>Serial Number:</strong> <span class="mono">${sn}</span></p>
+          <p><strong>Last Communicated:</strong> ${last}</p>
+        </div>
+      `;
+    }
+
+    function processDiagnostics(statusData) {
+      diagnosticResults.innerHTML = '';
+      const foundDataMap = new Map(statusData.map(item => [item.diagnostic.id, item]));
+
+      // 1) Specific diagnostics
+      for (const [name, ids] of Object.entries(DIAGNOSTICS_TO_CHECK)) {
+        let foundItem = null;
+        let foundId = null;
+
+        for (const id of ids) {
+          if (foundDataMap.has(id)) {
+            foundItem = foundDataMap.get(id);
+            foundId = id;
+            break;
+          }
         }
 
-        function handleSearch() {
-            hideError();
-            resultsContent.classList.add('hidden');
-            resultsSection.classList.remove('hidden');
-            showLoading();
-
-            const vehicleId = document.getElementById('vehicle-id').value.trim();
-            if (!vehicleId) {
-                showError("Please enter a VIN or Serial Number.");
-                hideLoading();
-                return;
-            }
-
-            let device;
-
-            api.get('Device', {
-                search: {
-                    or: [
-                        { serialNumber: vehicleId },
-                        { vehicleIdentificationNumber: vehicleId }
-                    ]
-                }
-            })
-            .then(devices => {
-                if (!devices || devices.length === 0) {
-                    throw new Error(`No device found with VIN/Serial: "${vehicleId}"`);
-                }
-                device = devices[0];
-                displayVehicleInfo(device);
-                return api.get('StatusData', {
-                    search: { deviceSearch: { id: device.id } }
-                });
-            })
-            .then(statusData => {
-                if (!statusData || statusData.length === 0) {
-                     showError("Device found, but no diagnostic data has been recorded for it yet.", "yellow");
-                }
-                processDiagnostics(statusData);
-                resultsContent.classList.remove('hidden');
-            })
-            .catch(error => {
-                showError(`Search Failed: ${error.message}`);
-                resultsContent.classList.add('hidden');
-            })
-            .finally(() => {
-                hideLoading();
-            });
+        let resultHtml = '';
+        if (foundItem) {
+          resultHtml = `
+            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
+              <div>
+                <p class="font-semibold text-white">${name}</p>
+                <p class="text-xs text-gray-400 break-all mono">${foundId}</p>
+              </div>
+              <div class="text-right flex-shrink-0 ml-4">
+                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Found</span>
+                <p class="text-lg text-white mt-1 break-all mono">${foundItem.data}</p>
+                <p class="text-xs text-gray-400">${new Date(foundItem.dateTime).toLocaleString()}</p>
+              </div>
+            </div>
+          `;
+        } else {
+          resultHtml = `
+            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md opacity-70">
+              <div>
+                <p class="font-semibold text-white">${name}</p>
+                <p class="text-xs text-gray-400 break-all mono">${ids.join(' or ')}</p>
+              </div>
+              <span class="px-3 py-1 text-sm font-semibold text-yellow-200 bg-yellow-800 rounded-full">Not Found</span>
+            </div>
+          `;
         }
+        diagnosticResults.innerHTML += resultHtml;
+      }
 
-        function displayVehicleInfo(device) {
-            vehicleInfo.innerHTML = `
-                <p><strong>Name:</strong> ${device.name}</p>
-                <p><strong>VIN:</strong> ${device.vehicleIdentificationNumber || 'N/A'}</p>
-                <p><strong>Serial Number:</strong> ${device.serialNumber || 'N/A'}</p>
-                <p><strong>Last Communicated:</strong> ${new Date(device.activeTo).toLocaleString()}</p>
-            `;
+      // 2) Other active auxiliaries
+      diagnosticResults.innerHTML += `<h3 class="text-xl font-semibold my-4 border-b border-gray-700 pb-2">Other Active Auxiliaries</h3>`;
+
+      const genericAuxIds = [
+        'DiagnosticAux1Id', 'DiagnosticAux2Id', 'DiagnosticAux3Id', 'DiagnosticAux4Id',
+        'DiagnosticAux5Id', 'DiagnosticAux6Id', 'DiagnosticAux7Id', 'DiagnosticAux8Id',
+        'DiagnosticThirdPartyAux5Id', 'DiagnosticThirdPartyAux6Id', 'DiagnosticThirdPartyAux7Id', 'DiagnosticThirdPartyAux8Id'
+      ];
+
+      let activeAuxFound = false;
+      for (const item of statusData) {
+        if (genericAuxIds.includes(item.diagnostic.id) && (item.data === true || item.data > 0)) {
+          activeAuxFound = true;
+          const friendlyName = item.diagnostic.id
+            .replace('Diagnostic', '')
+            .replace('Id', '')
+            .replace(/([a-z])([A-Z0-9])/g, '$1 $2');
+
+          const block = `
+            <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
+              <div>
+                <p class="font-semibold text-white">${friendlyName}</p>
+                <p class="text-xs text-gray-400 mono">${item.diagnostic.id}</p>
+              </div>
+              <div class="text-right flex-shrink-0 ml-4">
+                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Active</span>
+                <p class="text-lg text-white mt-1 mono">${item.data}</p>
+              </div>
+            </div>
+          `;
+          diagnosticResults.innerHTML += block;
         }
+      }
 
-        function processDiagnostics(statusData) {
-            diagnosticResults.innerHTML = ''; // Clear previous results
-            const foundDataMap = new Map(statusData.map(item => [item.diagnostic.id, item]));
+      if (!activeAuxFound) {
+        diagnosticResults.innerHTML += `
+          <div class="bg-gray-700 p-3 rounded-md text-center text-gray-400">
+            <p>No other standard or third-party auxiliaries are currently active.</p>
+          </div>
+        `;
+      }
+    }
 
-            // --- 1. Process SPECIFIC diagnostics ---
-            for (const [name, ids] of Object.entries(DIAGNOSTICS_TO_CHECK)) {
-                let foundItem = null;
-                let foundId = null;
+    function showLoading() { loadingSpinner.classList.remove('hidden'); }
+    function hideLoading() { loadingSpinner.classList.add('hidden'); }
 
-                for (const id of ids) {
-                    if (foundDataMap.has(id)) {
-                        foundItem = foundDataMap.get(id);
-                        foundId = id;
-                        break;
-                    }
-                }
-                
-                let resultHtml = '';
-                if (foundItem) {
-                    resultHtml = `
-                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
-                            <div>
-                                <p class="font-semibold text-white">${name}</p>
-                                <p class="text-xs text-gray-400 break-all">${foundId}</p>
-                            </div>
-                            <div class="text-right flex-shrink-0 ml-4">
-                                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Found</span>
-                                <p class="text-lg text-white mt-1 break-all">${foundItem.data}</p>
-                                <p class="text-xs text-gray-400">${new Date(foundItem.dateTime).toLocaleString()}</p>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                     resultHtml = `
-                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md opacity-60">
-                            <div>
-                                <p class="font-semibold text-white">${name}</p>
-                                <p class="text-xs text-gray-400 break-all">${ids.join(' or ')}</p>
-                            </div>
-                            <span class="px-3 py-1 text-sm font-semibold text-yellow-200 bg-yellow-800 rounded-full">Not Found</span>
-                        </div>
-                    `;
-                }
-                diagnosticResults.innerHTML += resultHtml;
-            }
-
-            // --- 2. Process GENERIC AUX diagnostics ---
-            diagnosticResults.innerHTML += `<h3 class="text-xl font-semibold my-4 border-b border-gray-700 pb-2">Other Active Auxiliaries</h3>`;
-
-            const genericAuxIds = [
-                'DiagnosticAux1Id', 'DiagnosticAux2Id', 'DiagnosticAux3Id', 'DiagnosticAux4Id',
-                'DiagnosticAux5Id', 'DiagnosticAux6Id', 'DiagnosticAux7Id', 'DiagnosticAux8Id',
-                'DiagnosticThirdPartyAux5Id', 'DiagnosticThirdPartyAux6Id', 'DiagnosticThirdPartyAux7Id', 'DiagnosticThirdPartyAux8Id'
-            ];
-
-            let activeAuxFound = false;
-            
-            for (const item of statusData) {
-                if (genericAuxIds.includes(item.diagnostic.id) && (item.data === true || item.data > 0)) {
-                    activeAuxFound = true;
-                    const friendlyName = item.diagnostic.id
-                        .replace('Diagnostic', '')
-                        .replace('Id', '')
-                        .replace(/([a-z])([A-Z0-9])/g, '$1 $2');
-
-                    const resultHtml = `
-                        <div class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
-                            <div>
-                                <p class="font-semibold text-white">${friendlyName}</p>
-                                <p class="text-xs text-gray-400">${item.diagnostic.id}</p>
-                            </div>
-                            <div class="text-right flex-shrink-0 ml-4">
-                                <span class="px-3 py-1 text-sm font-semibold text-green-200 bg-green-800 rounded-full">Active</span>
-                                <p class="text-lg text-white mt-1">${item.data}</p>
-                            </div>
-                        </div>
-                    `;
-                    diagnosticResults.innerHTML += resultHtml;
-                }
-            }
-
-            if (!activeAuxFound) {
-                 const resultHtml = `
-                    <div class="bg-gray-700 p-3 rounded-md text-center text-gray-400">
-                        <p>No other standard or third-party auxiliaries are currently active.</p>
-                    </div>
-                `;
-                diagnosticResults.innerHTML += resultHtml;
-            }
-        }
-
-        function showLoading() {
-            loadingSpinner.classList.remove('hidden');
-        }
-
-        function hideLoading() {
-            loadingSpinner.classList.add('hidden');
-        }
-
-        function showError(message, level = 'red') {
-            errorMessage.textContent = message;
-            errorMessage.classList.remove('hidden', 'bg-red-800', 'bg-yellow-800');
-            if (level === 'red') {
-                errorMessage.classList.add('bg-red-800');
-            } else {
-                errorMessage.classList.add('bg-yellow-800');
-            }
-        }
-
-        function hideError() {
-            errorMessage.classList.add('hidden');
-        }
-
-    </script>
+    function showError(message, level = 'red') {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden', 'bg-red-800', 'bg-yellow-800');
+      errorMessage.classList.add(level === 'red' ? 'bg-red-800' : 'bg-yellow-800');
+    }
+    function hideError() { errorMessage.classList.add('hidden'); }
+  </script>
 </body>
 </html>
-
