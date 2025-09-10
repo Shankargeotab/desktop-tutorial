@@ -97,7 +97,8 @@
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        // Using text/plain is a trick to avoid a CORS preflight request
+                        headers: { 'Content-Type': 'text/plain' },
                         body: JSON.stringify({
                             jsonrpc: '2.0',
                             method: method,
