@@ -114,7 +114,7 @@
                     <div id="config-form" class="hidden border-t border-gray-700 pt-4">
                         <p class="text-sm text-gray-400 mb-3">Enter the config value to send to the IOX-WRKS device.</p>
                         <div class="flex flex-col sm:flex-row gap-3">
-                            <input type="text" id="config-value" placeholder="Enter Configuration Value" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="292641311">
+                            <input type="text" id="config-value" placeholder="Enter Configuration Value" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="29264111">
                             <button type="button" id="send-config-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Send Configuration</button>
                         </div>
                         <p id="update-status" class="text-center h-5 mt-3"></p>
@@ -331,7 +331,8 @@
                 const foundDataMap = new Map((statusData || []).map(item => [item.diagnostic.id, item]));
 
                 // Check Ignition
-                appState.ignitionOn = foundDataMap.get('DiagnosticIgnitionId')?.data === true;
+                const ignitionData = foundDataMap.get('DiagnosticIgnitionId')?.data;
+                appState.ignitionOn = ignitionData === true || ignitionData > 0;
                 document.getElementById('check-ignition').innerHTML = `<span>Ignition Status</span> <span class="font-bold ${appState.ignitionOn ? 'text-green-400' : 'text-red-400'}">${appState.ignitionOn ? 'ON' : 'OFF'}</span>`;
 
                 // Check Rate Plan
