@@ -18,6 +18,9 @@
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.75);
         }
+        .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
@@ -84,7 +87,14 @@
                          <div id="diagnostic-results" class="space-y-2"></div>
                     </div>
 
-                    <p id="status-error" class="text-red-400 text-center h-4 mt-3"></p>
+                    <div class="border-t border-gray-700 pt-4">
+                        <button type="button" id="show-raw-button" class="w-full text-sm text-blue-400 hover:text-blue-300 py-2">Show All Raw Diagnostics</button>
+                        <div id="raw-diagnostics-container" class="hidden mt-2 p-3 bg-gray-900 rounded-md max-h-60 overflow-y-auto">
+                            <!-- Raw data will be injected here -->
+                        </div>
+                    </div>
+
+                    <p id="status-error" class="text-red-400 text-center h-4"></p>
 
                     <div class="border-t border-gray-700 pt-4">
                         <button type="button" id="refresh-button" class="w-full flex justify-center items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">
@@ -172,9 +182,10 @@
         }
 
         const api = new GeotabApi();
-        let appState = { device: null, ignitionOn: false, ratePlanValid: false };
+        let appState = { device: null, ignitionOn: false, ratePlanValid: false, lastStatusData: [] };
         const DIAGNOSTICS_TO_CHECK = {
             'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
+            'IOX Firmware Version': ['DiagnosticIoxWrksFirmwareVersionId'],
             'Plow': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
             'Wing Plow': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
         };
@@ -204,6 +215,7 @@
             });
             document.getElementById('save-asset-name').addEventListener('click', handleSaveAssetName);
             document.getElementById('refresh-button').addEventListener('click', fetchVehicleStatus);
+            document.getElementById('show-raw-button').addEventListener('click', handleShowRawDiagnostics);
             document.getElementById('config-no').addEventListener('click', () => {
                  document.getElementById('config-prompt').classList.add('hidden');
             });
@@ -248,7 +260,7 @@
         
         function handleLogout() {
             api.logout();
-            appState = { device: null, ignitionOn: false, ratePlanValid: false };
+            appState = { device: null, ignitionOn: false, ratePlanValid: false, lastStatusData: [] };
             document.getElementById('logout-button').classList.add('hidden');
             showStep('login');
         }
@@ -260,19 +272,13 @@
             button.disabled = true; spinner.classList.remove('hidden'); errorP.textContent = '';
             try {
                 const vehicleId = document.getElementById('vehicle-id').value.trim();
-                
-                // First, try to find the device by its serial number
                 let devices = await api.get('Device', { search: { serialNumber: vehicleId } });
-                
-                // If no device is found by serial number, then try searching by VIN
                 if (!devices || devices.length === 0) {
                     devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
                 }
-
                 if (!devices || devices.length === 0) {
                     throw new Error(`No device found for "${vehicleId}"`);
                 }
-
                 appState.device = devices[0];
                 assetNameModal.currentName.textContent = appState.device.name;
                 assetNameModal.newNameInput.value = appState.device.name;
@@ -319,6 +325,7 @@
                 ]);
                 
                 appState.device = fullDevice[0]; // Refresh device object
+                appState.lastStatusData = statusData || []; // Store raw data
                 document.getElementById('vehicle-info').innerHTML = `<p><strong>Name:</strong> ${appState.device.name}</p><p><strong>VIN:</strong> ${appState.device.vehicleIdentificationNumber || 'N/A'}</p>`;
 
                 const foundDataMap = new Map((statusData || []).map(item => [item.diagnostic.id, item]));
@@ -349,6 +356,8 @@
                 sendButton.disabled = !(appState.ignitionOn && appState.ratePlanValid);
                 if (sendButton.disabled) {
                     errorP.textContent = "Cannot send config. Ignition must be ON and rate plan must be valid.";
+                } else {
+                    errorP.textContent = "";
                 }
 
             } catch (error) {
@@ -357,6 +366,29 @@
                 statusSpinner.classList.add('hidden');
                 statusContent.classList.remove('hidden');
                 refreshButton.disabled = false;
+            }
+        }
+        
+        function handleShowRawDiagnostics() {
+            const container = document.getElementById('raw-diagnostics-container');
+            const button = document.getElementById('show-raw-button');
+            if (container.classList.contains('hidden')) {
+                let html = '<table class="w-full text-xs text-left"><thead><tr class="border-b border-gray-600"><th class="p-2">ID</th><th class="p-2">Value</th></tr></thead><tbody>';
+                if (appState.lastStatusData.length === 0) {
+                    html += '<tr><td colspan="2" class="p-2 text-center text-gray-400">No diagnostic data available.</td></tr>';
+                } else {
+                    const sortedData = [...appState.lastStatusData].sort((a, b) => (a.diagnostic.id || '').localeCompare(b.diagnostic.id || ''));
+                    for (const item of sortedData) {
+                        html += `<tr class="border-b border-gray-800 hover:bg-gray-700"><td class="p-2 font-mono">${item.diagnostic.id || 'N/A'}</td><td class="p-2">${item.data}</td></tr>`;
+                    }
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+                container.classList.remove('hidden');
+                button.textContent = 'Hide Raw Diagnostics';
+            } else {
+                container.classList.add('hidden');
+                button.textContent = 'Show All Raw Diagnostics';
             }
         }
 
