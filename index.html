@@ -137,7 +137,7 @@
                 if (!this.server) throw new Error("Server not set.");
                 const finalParams = (method === 'Authenticate') ? params : { ...(params || {}), credentials: this.credentials };
                 const requestBody = JSON.stringify({ method, params: finalParams });
-                const url = `https://${this.server}/api/v1`;
+                const url = `https://${this.server}/apiv1`; // Corrected URL
                 try {
                     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `JSON-RPC=${encodeURIComponent(requestBody)}` });
                     if (!response.ok) throw new Error(`Network response: ${response.status} ${response.statusText}`);
