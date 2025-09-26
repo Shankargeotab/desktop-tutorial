@@ -192,7 +192,6 @@
             'Wing Plow (Aux 7)': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
             'Aux 8': ['DiagnosticAux8Id', 'DiagnosticThirdPartyAux8Id'],
         };
-        const VALID_RATE_PLANS = ["go", "goplancustom", "propluspublicworks"];
         const SPREADER_CONFIGURATIONS = [
             { id: "1526959062", name: "1000 - Default Configuration" }, { id: "3396153187", name: "1001 - Certified Cirus ATS (Imperial)" },
             { id: "3920803092", name: "1002 - Certified Cirus ATS (Metric)" }, { id: "201962222", name: "1003 - Certified Cirus Spreadsmart/DualSpread (Imperial)" },
@@ -401,16 +400,28 @@
             refreshButton.disabled = true;
             
             try {
-                const [statusData, fullDevice] = await Promise.all([
+                const fromDate = new Date();
+                fromDate.setDate(fromDate.getDate() - 7); // Look at last 7 days of data for logs
+
+                const [statusData, fullDevice, logRecords] = await Promise.all([
                     api.get('StatusData', { search: { deviceSearch: { id: appState.device.id } } }),
-                    api.get('Device', { resultsLimit: 1, search: { id: appState.device.id } })
+                    api.get('Device', { resultsLimit: 1, search: { id: appState.device.id } }),
+                    api.get('LogRecord', { search: { deviceSearch: { id: appState.device.id }, fromDate: fromDate.toISOString() } })
                 ]);
                 
                 appState.device = fullDevice[0]; // Refresh device object
-                appState.lastStatusData = statusData || []; // Store raw data
+                const combinedStatus = [...(statusData || []), ...(logRecords || [])];
+                appState.lastStatusData = combinedStatus; // Store raw data
                 document.getElementById('vehicle-info').innerHTML = `<p><strong>Name:</strong> ${appState.device.name}</p><p><strong>VIN:</strong> ${appState.device.vehicleIdentificationNumber || 'N/A'}</p>`;
 
-                const foundDataMap = new Map((statusData || []).map(item => [item.diagnostic.id, item]));
+                const foundDataMap = new Map();
+                 // Prioritize more recent data by processing logs first, then live status
+                combinedStatus.forEach(item => {
+                    if (item.diagnostic) { // Both StatusData and LogRecord have .diagnostic
+                        foundDataMap.set(item.diagnostic.id, item);
+                    }
+                });
+
 
                 // Check Ignition
                 const ignitionData = foundDataMap.get('DiagnosticIgnitionId')?.data;
@@ -418,10 +429,8 @@
                 document.getElementById('check-ignition').innerHTML = `<span>Ignition Status</span> <span class="font-bold ${appState.ignitionOn ? 'text-green-400' : 'text-red-400'}">${appState.ignitionOn ? 'ON' : 'OFF'}</span>`;
 
                 // Check Rate Plan
-                const planId = appState.device.plan?.id?.toLowerCase();
-                const isRatePlanValid = VALID_RATE_PLANS.includes(planId);
                 const planName = appState.device.plan?.name || 'Unknown';
-                document.getElementById('check-rateplan').innerHTML = `<span>Rate Plan</span> <span class="font-bold ${isRatePlanValid ? 'text-green-400' : 'text-red-400'}">${planName}</span>`;
+                document.getElementById('check-rateplan').innerHTML = `<span>Rate Plan</span> <span class="font-bold">${planName}</span>`;
 
                 // Render Diagnostics
                 const resultsDiv = document.getElementById('diagnostic-results');
@@ -429,8 +438,16 @@
                  Object.entries(DIAGNOSTICS_TO_CHECK).forEach(([name, ids]) => {
                     let foundItem = null;
                     for (const id of ids) { if (foundDataMap.has(id)) { foundItem = foundDataMap.get(id); break; } }
-                    const value = foundItem ? `${foundItem.data} <span class="text-xs text-gray-400">(${new Date(foundItem.dateTime).toLocaleString()})</span>` : 'Not Found';
-                    const color = foundItem ? 'text-green-400' : 'text-yellow-400';
+                    
+                    let value = 'Not Found';
+                    let color = 'text-yellow-400';
+
+                    if(foundItem) {
+                        const date = foundItem.dateTime ? new Date(foundItem.dateTime).toLocaleString() : new Date(foundItem.datetime).toLocaleString();
+                        value = `${foundItem.data} <span class="text-xs text-gray-400">(${date})</span>`;
+                        color = 'text-green-400';
+                    }
+
                     resultsDiv.innerHTML += `<div class="flex justify-between items-center bg-gray-700 p-3 rounded-md"><span>${name}</span><span class="font-bold ${color}">${value}</span></div>`;
                 });
 
@@ -460,9 +477,11 @@
                 if (appState.lastStatusData.length === 0) {
                     html += '<tr><td colspan="2" class="p-2 text-center text-gray-400">No diagnostic data available.</td></tr>';
                 } else {
-                    const sortedData = [...appState.lastStatusData].sort((a, b) => (a.diagnostic.id || '').localeCompare(b.diagnostic.id || ''));
+                    const sortedData = [...appState.lastStatusData].sort((a, b) => ((a.diagnostic && a.diagnostic.id) || '').localeCompare((b.diagnostic && b.diagnostic.id) || ''));
                     for (const item of sortedData) {
-                        html += `<tr class="border-b border-gray-800 hover:bg-gray-700"><td class="p-2 font-mono">${item.diagnostic.id || 'N/A'}</td><td class="p-2">${item.data}</td></tr>`;
+                         if (item.diagnostic) {
+                            html += `<tr class="border-b border-gray-800 hover:bg-gray-700"><td class="p-2 font-mono">${item.diagnostic.id || 'N/A'}</td><td class="p-2">${item.data}</td></tr>`;
+                         }
                     }
                 }
                 html += '</tbody></table>';
@@ -508,5 +527,3 @@
     </script>
 </body>
 </html>
-what is this? no changes are made and it says error to change config you need to have a vaild plan it shoudl not check that and the value for config I am looking for is not there can you make sure you are not giving me old code? I am looking for the one that we removed the rate plan and added 1043 - Roadwatch BLT - Primary29264111, this value in the selection list. I want to see the search by VIN number as well in the application
-
