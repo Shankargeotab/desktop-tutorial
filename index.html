@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geotab Technician Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .spinner { border-top-color: #3498db; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg);} }
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .step-card {
+            transition: opacity 0.5s ease-in-out;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+        .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white">Geotab Technician Tool</h1>
+            <p class="text-gray-400">A step-by-step workflow for vehicle configuration.</p>
+        </header>
+
+        <div class="space-y-6">
+            <!-- Step 1: Login -->
+            <div id="step-login" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">1</div>
+                    <h2 class="text-xl font-semibold">API Login</h2>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="server" placeholder="Server (e.g., my.geotab.com)" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="my.geotab.com">
+                    <input type="text" id="database" placeholder="Database Name" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="username" placeholder="Username" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="button" id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Login</button>
+                    <p id="login-error" class="text-red-400 text-center h-4"></p>
+                </div>
+                 <div class="text-right mt-4">
+                    <button id="logout-button" class="hidden text-sm text-blue-400 hover:text-blue-300">Logout</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Search -->
+            <div id="step-search" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">2</div>
+                    <h2 class="text-xl font-semibold">Vehicle Lookup</h2>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="vehicle-id" placeholder="Enter VIN or Serial Number" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="button" id="search-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Fetch Details</button>
+                </div>
+                <p id="search-error" class="text-red-400 text-center h-4 mt-3"></p>
+                <div id="search-spinner" class="hidden flex justify-center items-center p-4"><div class="spinner w-8 h-8 rounded-full border-4 border-gray-600"></div></div>
+            </div>
+            
+            <!-- Step 3: Vehicle Status & Configuration -->
+            <div id="step-status" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                 <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">3</div>
+                    <h2 class="text-xl font-semibold">Vehicle Status & Configuration</h2>
+                </div>
+
+                <div id="status-spinner" class="hidden flex justify-center items-center p-4"><div class="spinner w-8 h-8 rounded-full border-4 border-gray-600"></div></div>
+                <div id="status-content" class="space-y-4">
+                    <div id="vehicle-info" class="text-gray-300 border-b border-gray-700 pb-4"></div>
+                    
+                    <div class="space-y-3">
+                        <h4 class="font-semibold">System Status:</h4>
+                        <div id="check-ignition" class="flex justify-between items-center bg-gray-700 p-3 rounded-md"></div>
+                        <div id="check-rateplan" class="flex justify-between items-center bg-gray-700 p-3 rounded-md"></div>
+                    </div>
+                    
+                    <div>
+                         <h4 class="font-semibold mb-3">Diagnostics:</h4>
+                         <div id="diagnostic-results" class="space-y-2"></div>
+                    </div>
+
+                    <div class="border-t border-gray-700 pt-4">
+                        <button type="button" id="show-raw-button" class="w-full text-sm text-blue-400 hover:text-blue-300 py-2">Show All Raw Diagnostics</button>
+                        <div id="raw-diagnostics-container" class="hidden mt-2 p-3 bg-gray-900 rounded-md max-h-60 overflow-y-auto">
+                            <!-- Raw data will be injected here -->
+                        </div>
+                    </div>
+
+                    <p id="status-error" class="text-red-400 text-center h-4"></p>
+
+                    <div class="border-t border-gray-700 pt-4">
+                        <button type="button" id="refresh-button" class="w-full flex justify-center items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+                            Refresh Data
+                        </button>
+                    </div>
+
+                    <div id="config-prompt" class="border-t border-gray-700 pt-4 text-center">
+                        <p class="mb-3">Do you want to change the configuration?</p>
+                        <div class="flex justify-center gap-4">
+                            <button id="config-no" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition">No</button>
+                            <button id="config-yes" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition">Yes</button>
+                        </div>
+                    </div>
+
+                    <div id="config-form" class="hidden border-t border-gray-700 pt-4">
+                        <p class="text-sm text-gray-400 mb-3">Select the config to send to the IOX-WRKS device.</p>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <select id="config-select" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                            <button type="button" id="send-config-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Send Configuration</button>
+                        </div>
+                        <p id="update-status" class="text-center h-5 mt-3"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Name Change Modal -->
+    <div id="asset-name-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-sm">
+            <div class="p-6">
+                <h3 class="font-semibold text-lg text-center">Update Asset Name?</h3>
+                <p class="text-gray-400 text-sm text-center mt-2">The current asset name is "<span id="current-asset-name" class="font-bold"></span>". Would you like to change it?</p>
+                
+                <div id="asset-name-prompt" class="mt-6 flex justify-center gap-4">
+                    <button id="asset-name-no" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition">No, Keep It</button>
+                    <button id="asset-name-yes" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition">Yes, Change It</button>
+                </div>
+
+                <div id="asset-name-form" class="hidden mt-4 space-y-3">
+                     <input type="text" id="new-asset-name" class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                     <button id="save-asset-name" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition">Save New Name</button>
+                     <p id="asset-name-status" class="text-center h-4"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Geotab API Wrapper ---
+        class GeotabApi {
+            constructor() { this.server = null; this.credentials = null; }
+            async call(method, params) {
+                if (!this.server) throw new Error("Server not set.");
+                const finalParams = (method === 'Authenticate') ? params : { ...(params || {}), credentials: this.credentials };
+                const requestBody = JSON.stringify({ method, params: finalParams });
+                const url = `https://${this.server}/apiv1`;
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `JSON-RPC=${encodeURIComponent(requestBody)}` });
+                    if (!response.ok) throw new Error(`Network response: ${response.status} ${response.statusText}`);
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message || 'Unknown API error.');
+                    return data.result;
+                } catch (error) { console.error("API Call failed:", error); throw error; }
+            }
+            async get(typeName, params) { return this.call('Get', { typeName, ...params }); }
+            async set(typeName, entity) { return this.call('Set', { typeName, entity }); }
+            async authenticate(server, database, userName, password) {
+                this.server = server; this.credentials = null;
+                const result = await this.call('Authenticate', { database, userName, password });
+                if (result && result.credentials) {
+                    this.credentials = result.credentials;
+                    sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
+                    return result.credentials;
+                }
+                throw new Error('Authentication failed');
+            }
+            async sendTextMessage(deviceId, message) {
+                const textMessage = { device: { id: deviceId }, messageContent: { contentType: 'Custom', message }, isDirectionToVehicle: true };
+                return this.call('Add', { typeName: 'TextMessage', entity: textMessage });
+            }
+            logout() { this.credentials = null; this.server = null; sessionStorage.removeItem('geotab_creds'); }
+        }
+
+        const api = new GeotabApi();
+        let appState = { device: null, ignitionOn: false, ratePlanValid: false, lastStatusData: [] };
+        const DIAGNOSTICS_TO_CHECK = {
+            'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
+            'IOX Firmware Version': ['DiagnosticIoxWrksFirmwareVersionId'],
+            'Aux 1': ['DiagnosticAux1Id'], 'Aux 2': ['DiagnosticAux2Id'], 'Aux 3': ['DiagnosticAux3Id'], 'Aux 4': ['DiagnosticAux4Id'],
+            'Aux 5': ['DiagnosticAux5Id', 'DiagnosticThirdPartyAux5Id'],
+            'Plow (Aux 6)': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
+            'Wing Plow (Aux 7)': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
+            'Aux 8': ['DiagnosticAux8Id', 'DiagnosticThirdPartyAux8Id'],
+        };
+        const VALID_RATE_PLANS = ["goplancustom", "propluspublicworks"];
+        const SPREADER_CONFIGURATIONS = [
+            { id: "1526959062", name: "1000 - Default Configuration" }, { id: "3396153187", name: "1001 - Certified Cirus ATS (Imperial)" },
+            { id: "3920803092", name: "1002 - Certified Cirus ATS (Metric)" }, { id: "201962222", name: "1003 - Certified Cirus Spreadsmart/DualSpread (Imperial)" },
+            { id: "3796535418", name: "1004 - Certified Cirus Spreadsmart/DualSpread (Metric)" }, { id: "4216249865", name: "1005 - Rexroth CS230 (Imperial)" },
+            { id: "3790635943", name: "1006 - Rexroth CS230 (Metric)" }, { id: "600408461", name: "1007 - Rexroth CS440 (Imperial - FW22 & Older)" },
+            { id: "982996223", name: "1008 - Rexroth CS440 (Metric - FW22 & Older)" }, { id: "2409568299", name: "1009 - Rexroth CS550 (Imperial - FW22 & Older)" },
+            { id: "2529283417", name: "1010 - Rexroth CS550 (Metric - FW22 & Older)" }, { id: "2115473590", name: "1012 - Schmidt AL Gateway" },
+            { id: "117066270", name: "1013 - Dickey John Control Point (Imperial)" }, { id: "1292641311", name: "1014 - Dickey John Control Point (Metric)" },
+            { id: "2872482028", name: "1016 - ACE Ecobite/Chlorobite" }, { id: "4264707243", name: "1018 - Epoke - 9600 Baud" },
+            { id: "3393377164", name: "1020 - Epoke - 19200 Baud" }, { id: "594989661", name: "1021 - Force America 5100 (Imperial)" },
+            { id: "1865201139", name: "1022 - Force America 5100 (Metric)" }, { id: "2900741065", name: "1023 - Force America 6100 (Imperial)" },
+            { id: "2630044278", name: "1024 - Force America 6100 (Metric)" }, { id: "3775484525", name: "1025 - Dickey John Flex4 (Imperial)" },
+            { id: "2868853868", name: "1026 - Dickey John Flex4 (Metric)" }, { id: "3775484525", name: "1027 - Dickey John Flex4 Pro (Imperial)" },
+            { id: "2868853868", name: "1028 - Dickey John Flex4 Pro (Metric)" }, { id: "2778273362", name: "1029 - Genesis - J1939" },
+            { id: "2708167457", name: "1030 - Genesis - CanOpen" }, { id: "1675890095", name: "1032 - Scott Industrial - CANbus" },
+            { id: "242411636", name: "1034 - Dakota Fluid Power - CANbus" }, { id: "2692132864", name: "1036 - Giletta" },
+            { id: "2079931449", name: "1038 - Parker IQAN - CANbus" }, { id: "2826839592", name: "1039 - Lufft MARWIS - CANbus (Imperial)" },
+            { id: "1556394891", name: "1040 - Lufft MARWIS - CANbus (Metric)" }, { id: "4267643116", name: "1041 - Muncie Advantage+/Omni - CANbus" },
+            { id: "164931444", name: "1043 - Roadwatch BLT - Primary" }, { id: "1820249855", name: "1044 - Roadwatch BLT - Secondary" },
+            { id: "1780272884", name: "1045 - Roadwatch - Primary" }, { id: "2089521232", name: "1046 - Certified Cirus XDS (Imperial)" },
+            { id: "1599343143", name: "1047 - Certified Cirus XDS (Metric)" }, { id: "608059118", name: "1048 - Raven 4400 - Imperial" },
+            { id: "1875398895", name: "1049 - Raven 4400 - Metric" }, { id: "2227601566", name: "1050 - Force America 6100 - Imperial - Geotab Key" },
+            { id: "3034579233", name: "1051 - Force America 6100 - Metric - Geotab Key" }, { id: "1076679503", name: "1052 - Force America 5100 (Imperial) + RoadWatch (FW25 & Older)" },
+            { id: "1517527452", name: "1053 - Force America 5100 (Metric) + RoadWatch (FW25 & Older)" }, { id: "4173906224", name: "1054 - Force America 6100 (Imperial) + RoadWatch (FW25 & Older)" },
+            { id: "193832882", name: "1055 - Force America 6100 (Metric) + RoadWatch (FW25 & Older)" }, { id: "1170267029", name: "1056 - Force America 6100 (Imperial - Geotab Key) + RoadWatch" },
+            { id: "3062218007", name: "1057 - Force America 6100 (Metric - Geotab Key) + RoadWatch" }, { id: "3017881990", name: "1058 - Parker IQAN - CANbus (Metric) + RoadWatch Primary" },
+            { id: "3579782082", name: "1059 - Allied Mobile - CANBus" }, { id: "2118382216", name: "1060 - Econ - Metric" },
+            { id: "1130475548", name: "1061 - Parker IQAN - CANbus (Imperial) + RoadWatch Primary" }, { id: "1727823936", name: "1062 - Dickey John Control Point (Metric) + RoadWatch" },
+            { id: "3635077687", name: "1063 - Muncie (Metric) + RoadWatch" }, { id: "2862644686", name: "1064 - Rasco Epos10" },
+            { id: "1606232981", name: "1065 - Schmidt EN15430-1" }, { id: "2883366112", name: "1066 - Schmidt AL Gateway + Roadwatch" },
+            { id: "1670265314", name: "1067 - Certified Cirus XDS (Metric) + Roadwatch" }, { id: "2141564790", name: "1068 - Rexroth CS660 (Imperial) (10 sec)" },
+            { id: "1727756804", name: "1069 - Rexroth CS660 (Metric) (10 sec)" }, { id: "1655324453", name: "1070 - Precise WCM02" },
+            { id: "2740798111", name: "1071 - Rexroth CS440 (Imperial)" }, { id: "3120797677", name: "1072 - Rexroth CS440 (Metric)" },
+            { id: "2524352571", name: "1073 - Rexroth CS550 (Imperial)" }, { id: "374672971", name: "1074 - Rexroth CS550 (Metric)" },
+            { id: "2690573127", name: "1075 - Dickey John Control Point (Imperial) + Precise" }, { id: "1689395576", name: "1076 - Rexroth CS660 (Imperial)" },
+            { id: "2137502219", name: "1077 - Rexroth CS660 (Metric)" }, { id: "1283308118", name: "1078 - Rexroth CS440 (Metric) + Roadwatch" },
+            { id: "2096742150", name: "1079 - Rexroth CS550 (Metric)+ Roadwatch" }, { id: "404119454", name: "1080 - Force America 6100 (Imperial) + Marwis" },
+            { id: "3155862825", name: "1081 - Rasco (Metric) + Roadwatch" }, { id: "1231905763", name: "1082 - Dickey John Flex4 (Metric) + Roadwatch" },
+            { id: "1231905763", name: "1083 - Dickey John Flex4 Pro (Metric) + Roadwatch" }, { id: "255832971", name: "1084 - Force America 6100 (Imperial) + Precise" },
+            { id: "3087188650", name: "1085 - Cirus (Metric) + Roadwatch" }, { id: "3505336551", name: "1086 - Force America 5100 (Imperial) + Roadwatch" },
+            { id: "1835603328", name: "1087 - Force America 5100 (Metric) + Roadwatch" }, { id: "313273470", name: "1088 - Force America 6100 (Metric) + Precise" },
+            { id: "2117476796", name: "1089 - Vaisala MD30 (Imperial)" }, { id: "748979982", name: "1090 - Vaisala MD30 (Metric)" },
+            { id: "1671853187", name: "1091 - Dickey John Control Point (Imperial) + RoadWatch" }, { id: "3154284615", name: "1092 - Force America 6100 (Imperial) + Precise (temp only)" },
+            { id: "3510404360", name: "1093 - Force America 6100 (Metric) + Precise (temp only)" }, { id: "738648652", name: "1094 - Dickey John Control Point (Imperial) + Precise (temp only)" },
+            { id: "2890300380", name: "1095 - Precise (temp only)" }, { id: "2911820857", name: "1096 - Rexroth CS660 + Joystick (Imperial)" },
+            { id: "2701576015", name: "1097 - Rexroth CS660 + Joystick (Metric)" }, { id: "3770395366", name: "1098 - Rexroth CS550 + Joystick (Imperial)" },
+            { id: "1546013822", name: "1099 - Rexroth CS550 + Joystick (Metric)" }, { id: "1839722436", name: "1100 - Force America 6100 (Imperial) + Precise" },
+            { id: "3041797549", name: "1101 - Force America 6100 (Metric) + Precise" }, { id: "2144127787", name: "1102 - Force America 6100 (Imperial) + RoadWatch" },
+            { id: "731197413", name: "1103 - Force America 6100 (Metric) + RoadWatch" }, { id: "3139460070", name: "1104 - Vaisala MD30 (Imperial) - Secondary" },
+            { id: "3954755125", name: "1105 - Vaisala MD30 (Metric) - Secondary" }, { id: "1875328526", name: "1106 - Guardian" },
+            { id: "2449284280", name: "1108 - Epoke - 19200 Baud + RoadWatch" }, { id: "609996261", name: "1109 - Rexroth CS550 (Metric) + Guardian" },
+            { id: "498600665", name: "1110 - Rexroth CS550 (Imperial) + Guardian" }, { id: "2478180777", name: "1111 - Force America 6100 (Imperial) + Guardian" },
+            { id: "2674543025", name: "1112 - Force America 6100 (Metric) + Guardian" }, { id: "290341480", name: "1113 - Force America 6100 (Imperial - Geotab Key) + Guardian" },
+            { id: "496108144", name: "1114 - Force America 6100 (Metric - Geotab Key) + Guardian" }, { id: "3561820466", name: "1115 - Force America 5100 (Imperial) + Guardian" },
+            { id: "2478954388", name: "1116 - Force America 5100 (Metric) + Guardian" }, { id: "2842488345", name: "1117 - Dickey John Control Point (Imperial) + Guardian" },
+            { id: "391644851", name: "1118 - Dickey John Control Point (Metric) + Guardian" }, { id: "3443935184", name: "1119 - Rexroth CS660 (Imperial) + Guardian" },
+            { id: "3546057411", name: "1120 - Rexroth CS660 (Metric) + Guardian" }, { id: "2490835581", name: "1121 - Certified Cirus XDS (Imperial) + Guardian" },
+            { id: "3294660466", name: "1122 - Certified Cirus XDS (Metric) + Guardian" }, { id: "4239577903", name: "1123 - Rexroth CS550 (Imperial)+ Roadwatch" },
+            { id: "580286064", name: "1124 - Rexroth CS660 (Imperial) + Roadwatch" }, { id: "3076057094", name: "1125 - Rexroth CS660 (Metric) + Roadwatch" },
+            { id: "1880975714", name: "1126 - Certified Cirus XDS (Imperial) + Roadwatch" }, { id: "659332295", name: "1127 - Force America 6100 (Imperial) + MD30" },
+            { id: "1836459634", name: "1128 - Force America 6100 (Metric) + MD30" }, { id: "2020127671", name: "1129 - Force America 6100 (Imperial - Geotab Key) + MD30" },
+            { id: "844237058", name: "1130 - Force America 6100 (Metric - Geotab Key) + MD30" }, { id: "329047970", name: "1131 - Force America 5100 (Imperial) + MD30" },
+            { id: "1633270223", name: "1132 - Force America 5100 (Metric) + MD30" }, { id: "1405456630", name: "1133 - ACE Ecobite/Chlorobite (Metric) + Roadwatch" },
+            { id: "1369731638", name: "1134 - ACE Ecobite/Chlorobite (Metric) + Guardian" }, { id: "392439043", name: "1135 - Force America 6100 (Metric - Geotab Key) + Marwis" },
+            { id: "213323661", name: "1136 - Force America 6100 (Imperial - Geotab Key) + Marwis" }, { id: "113324378", name: "1137 - Force America 6100 (Metric) + Marwis" },
+            { id: "1437223176", name: "1138 - Force America 6100 (Imperial) + Marwis" }, { id: "2523059165", name: "1139 - Force America 5100 (Imperial) + Precise" },
+            { id: "2508182048", name: "1140 - Force America 5100 (Metric) + Precise" },
+        ];
+
+
+        // --- DOM Elements ---
+        const steps = {
+            login: document.getElementById('step-login'),
+            search: document.getElementById('step-search'),
+            status: document.getElementById('step-status'),
+        };
+        const assetNameModal = {
+            backdrop: document.getElementById('asset-name-modal'), prompt: document.getElementById('asset-name-prompt'),
+            form: document.getElementById('asset-name-form'), currentName: document.getElementById('current-asset-name'),
+            newNameInput: document.getElementById('new-asset-name'), status: document.getElementById('asset-name-status'),
+        };
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('login-button').addEventListener('click', handleLogin);
+            document.getElementById('logout-button').addEventListener('click', handleLogout);
+            document.getElementById('search-button').addEventListener('click', handleSearch);
+            document.getElementById('asset-name-no').addEventListener('click', () => showNextStep('status'));
+            document.getElementById('asset-name-yes').addEventListener('click', () => {
+                assetNameModal.prompt.classList.add('hidden');
+                assetNameModal.form.classList.remove('hidden');
+            });
+            document.getElementById('save-asset-name').addEventListener('click', handleSaveAssetName);
+            document.getElementById('refresh-button').addEventListener('click', fetchVehicleStatus);
+            document.getElementById('show-raw-button').addEventListener('click', handleShowRawDiagnostics);
+            document.getElementById('config-no').addEventListener('click', () => {
+                 document.getElementById('config-prompt').classList.add('hidden');
+            });
+            document.getElementById('config-yes').addEventListener('click', () => {
+                document.getElementById('config-prompt').classList.add('hidden');
+                document.getElementById('config-form').classList.remove('hidden');
+            });
+            document.getElementById('send-config-button').addEventListener('click', handleSendConfig);
+            
+            // Populate the dropdown
+            const configSelect = document.getElementById('config-select');
+            SPREADER_CONFIGURATIONS.forEach(config => {
+                const option = document.createElement('option');
+                option.value = config.id;
+                option.textContent = config.name;
+                configSelect.appendChild(option);
+            });
+
+            checkSession();
+        });
+
+        // --- UI Control ---
+        function showStep(stepName) {
+            Object.values(steps).forEach(step => step.classList.add('hidden'));
+            if (steps[stepName]) steps[stepName].classList.remove('hidden');
+        }
+        function showNextStep(stepName) {
+            assetNameModal.backdrop.classList.add('hidden');
+            showStep(stepName);
+            if (stepName === 'status') {
+                document.getElementById('config-prompt').classList.remove('hidden');
+                document.getElementById('config-form').classList.add('hidden');
+                fetchVehicleStatus();
+            };
+        }
+
+        // --- Main Handlers ---
+        async function handleLogin() {
+            const button = document.getElementById('login-button');
+            const errorP = document.getElementById('login-error');
+            button.disabled = true; button.textContent = 'Logging in...'; errorP.textContent = '';
+            try {
+                await api.authenticate(
+                    document.getElementById('server').value, document.getElementById('database').value,
+                    document.getElementById('username').value, document.getElementById('password').value
+                );
+                document.getElementById('logout-button').classList.remove('hidden');
+                showStep('search');
+            } catch (error) { errorP.textContent = `Login Failed: ${error.message}`;
+            } finally { button.disabled = false; button.textContent = 'Login'; }
+        }
+        
+        function handleLogout() {
+            api.logout();
+            appState = { device: null, ignitionOn: false, ratePlanValid: false, lastStatusData: [] };
+            document.getElementById('logout-button').classList.add('hidden');
+            showStep('login');
+        }
+
+        async function handleSearch() {
+            const button = document.getElementById('search-button');
+            const spinner = document.getElementById('search-spinner');
+            const errorP = document.getElementById('search-error');
+            button.disabled = true; spinner.classList.remove('hidden'); errorP.textContent = '';
+            try {
+                const vehicleId = document.getElementById('vehicle-id').value.trim();
+                let devices = await api.get('Device', { search: { serialNumber: vehicleId } });
+                if (!devices || devices.length === 0) {
+                    devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
+                }
+                if (!devices || devices.length === 0) {
+                    throw new Error(`No device found for "${vehicleId}"`);
+                }
+                appState.device = devices[0];
+                assetNameModal.currentName.textContent = appState.device.name;
+                assetNameModal.newNameInput.value = appState.device.name;
+                assetNameModal.prompt.classList.remove('hidden');
+                assetNameModal.form.classList.add('hidden');
+                assetNameModal.status.textContent = '';
+                assetNameModal.backdrop.classList.remove('hidden');
+            } catch (error) { 
+                errorP.textContent = `Search Failed: ${error.message}`;
+            } finally { 
+                button.disabled = false; spinner.classList.add('hidden'); 
+            }
+        }
+        
+        async function handleSaveAssetName() {
+            const button = document.getElementById('save-asset-name');
+            const newName = assetNameModal.newNameInput.value.trim();
+            button.disabled = true; assetNameModal.status.textContent = 'Saving...';
+            try {
+                appState.device.name = newName;
+                await api.set('Device', appState.device);
+                assetNameModal.status.textContent = 'Saved successfully!';
+                setTimeout(() => showNextStep('status'), 1500);
+            } catch (error) {
+                assetNameModal.status.textContent = `Error: ${error.message}`;
+                button.disabled = false;
+            }
+        }
+
+        async function fetchVehicleStatus() {
+            const statusSpinner = document.getElementById('status-spinner');
+            const statusContent = document.getElementById('status-content');
+            const errorP = document.getElementById('status-error');
+            const refreshButton = document.getElementById('refresh-button');
+            statusSpinner.classList.remove('hidden');
+            statusContent.classList.add('hidden');
+            errorP.textContent = '';
+            refreshButton.disabled = true;
+            
+            try {
+                const [statusData, fullDevice] = await Promise.all([
+                    api.get('StatusData', { search: { deviceSearch: { id: appState.device.id } } }),
+                    api.get('Device', { resultsLimit: 1, search: { id: appState.device.id } })
+                ]);
+                
+                appState.device = fullDevice[0]; // Refresh device object
+                appState.lastStatusData = statusData || []; // Store raw data
+                document.getElementById('vehicle-info').innerHTML = `<p><strong>Name:</strong> ${appState.device.name}</p><p><strong>VIN:</strong> ${appState.device.vehicleIdentificationNumber || 'N/A'}</p>`;
+
+                const foundDataMap = new Map((statusData || []).map(item => [item.diagnostic.id, item]));
+
+                // Check Ignition
+                const ignitionData = foundDataMap.get('DiagnosticIgnitionId')?.data;
+                appState.ignitionOn = ignitionData === true || ignitionData > 0;
+                document.getElementById('check-ignition').innerHTML = `<span>Ignition Status</span> <span class="font-bold ${appState.ignitionOn ? 'text-green-400' : 'text-red-400'}">${appState.ignitionOn ? 'ON' : 'OFF'}</span>`;
+
+                // Check Rate Plan
+                const planId = appState.device.plan?.id?.toLowerCase();
+                appState.ratePlanValid = VALID_RATE_PLANS.includes(planId);
+                const planName = appState.device.plan?.name || 'Unknown';
+                document.getElementById('check-rateplan').innerHTML = `<span>Rate Plan</span> <span class="font-bold ${appState.ratePlanValid ? 'text-green-400' : 'text-red-400'}">${planName}</span>`;
+
+                // Render Diagnostics
+                const resultsDiv = document.getElementById('diagnostic-results');
+                resultsDiv.innerHTML = '';
+                 Object.entries(DIAGNOSTICS_TO_CHECK).forEach(([name, ids]) => {
+                    let foundItem = null;
+                    for (const id of ids) { if (foundDataMap.has(id)) { foundItem = foundDataMap.get(id); break; } }
+                    const value = foundItem ? `${foundItem.data} <span class="text-xs text-gray-400">(${new Date(foundItem.dateTime).toLocaleString()})</span>` : 'Not Found';
+                    const color = foundItem ? 'text-green-400' : 'text-yellow-400';
+                    resultsDiv.innerHTML += `<div class="flex justify-between items-center bg-gray-700 p-3 rounded-md"><span>${name}</span><span class="font-bold ${color}">${value}</span></div>`;
+                });
+
+                // Enable/disable send button
+                const sendButton = document.getElementById('send-config-button');
+                sendButton.disabled = !(appState.ignitionOn && appState.ratePlanValid);
+                if (sendButton.disabled) {
+                    let reason = [];
+                    if (!appState.ignitionOn) reason.push("Ignition must be ON");
+                    if (!appState.ratePlanValid) reason.push("Rate Plan must be valid");
+                    errorP.textContent = "Cannot send config. " + reason.join(' and ') + ".";
+                } else {
+                    errorP.textContent = "";
+                }
+
+            } catch (error) {
+                errorP.textContent = `Error fetching status: ${error.message}`;
+            } finally {
+                statusSpinner.classList.add('hidden');
+                statusContent.classList.remove('hidden');
+                refreshButton.disabled = false;
+            }
+        }
+        
+        function handleShowRawDiagnostics() {
+            const container = document.getElementById('raw-diagnostics-container');
+            const button = document.getElementById('show-raw-button');
+            if (container.classList.contains('hidden')) {
+                let html = '<table class="w-full text-xs text-left"><thead><tr class="border-b border-gray-600"><th class="p-2">ID</th><th class="p-2">Value</th></tr></thead><tbody>';
+                if (appState.lastStatusData.length === 0) {
+                    html += '<tr><td colspan="2" class="p-2 text-center text-gray-400">No diagnostic data available.</td></tr>';
+                } else {
+                    const sortedData = [...appState.lastStatusData].sort((a, b) => (a.diagnostic.id || '').localeCompare(b.diagnostic.id || ''));
+                    for (const item of sortedData) {
+                        html += `<tr class="border-b border-gray-800 hover:bg-gray-700"><td class="p-2 font-mono">${item.diagnostic.id || 'N/A'}</td><td class="p-2">${item.data}</td></tr>`;
+                    }
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+                container.classList.remove('hidden');
+                button.textContent = 'Hide Raw Diagnostics';
+            } else {
+                container.classList.add('hidden');
+                button.textContent = 'Show All Raw Diagnostics';
+            }
+        }
+
+        async function handleSendConfig() {
+            const button = document.getElementById('send-config-button');
+            const statusP = document.getElementById('update-status');
+            const configValue = document.getElementById('config-select').value;
+            const command = `set ControllerConfiguration ${configValue}`;
+
+            button.disabled = true; statusP.className = 'text-center h-5 mt-3 text-yellow-400'; statusP.textContent = 'Sending command...';
+            try {
+                await api.sendTextMessage(appState.device.id, command);
+                statusP.className = 'text-center h-5 mt-3 text-green-400';
+                statusP.textContent = 'Command sent successfully! Refreshing...';
+                setTimeout(fetchVehicleStatus, 2000);
+            } catch (error) {
+                statusP.className = 'text-center h-5 mt-3 text-red-400';
+                statusP.textContent = `Error: ${error.message}`;
+                button.disabled = false;
+            }
+        }
+        
+        function checkSession() {
+            const storedCreds = sessionStorage.getItem('geotab_creds');
+            if (storedCreds) {
+                try {
+                    const { server, credentials } = JSON.parse(storedCreds);
+                    api.server = server; api.credentials = credentials;
+                    document.getElementById('logout-button').classList.remove('hidden');
+                    showStep('search');
+                } catch (e) { sessionStorage.removeItem('geotab_creds'); }
+            }
+        }
+    </script>
+</body>
+</html>
+
