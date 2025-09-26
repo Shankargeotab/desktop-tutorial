@@ -260,8 +260,19 @@
             button.disabled = true; spinner.classList.remove('hidden'); errorP.textContent = '';
             try {
                 const vehicleId = document.getElementById('vehicle-id').value.trim();
-                const devices = await api.get('Device', { search: { or: [{ serialNumber: vehicleId }, { vehicleIdentificationNumber: vehicleId }] } });
-                if (!devices || !devices.length) throw new Error(`No device found for "${vehicleId}"`);
+                
+                // First, try to find the device by its serial number
+                let devices = await api.get('Device', { search: { serialNumber: vehicleId } });
+                
+                // If no device is found by serial number, then try searching by VIN
+                if (!devices || devices.length === 0) {
+                    devices = await api.get('Device', { search: { vehicleIdentificationNumber: vehicleId } });
+                }
+
+                if (!devices || devices.length === 0) {
+                    throw new Error(`No device found for "${vehicleId}"`);
+                }
+
                 appState.device = devices[0];
                 assetNameModal.currentName.textContent = appState.device.name;
                 assetNameModal.newNameInput.value = appState.device.name;
@@ -269,8 +280,11 @@
                 assetNameModal.form.classList.add('hidden');
                 assetNameModal.status.textContent = '';
                 assetNameModal.backdrop.classList.remove('hidden');
-            } catch (error) { errorP.textContent = `Search Failed: ${error.message}`;
-            } finally { button.disabled = false; spinner.classList.add('hidden'); }
+            } catch (error) { 
+                errorP.textContent = `Search Failed: ${error.message}`;
+            } finally { 
+                button.disabled = false; spinner.classList.add('hidden'); 
+            }
         }
         
         async function handleSaveAssetName() {
