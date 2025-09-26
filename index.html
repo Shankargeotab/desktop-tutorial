@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geotab Technician Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .spinner { border-top-color: #3498db; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg);} }
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .step-card {
+            transition: opacity 0.5s ease-in-out;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white">Geotab Technician Tool</h1>
+            <p class="text-gray-400">A step-by-step workflow for vehicle configuration.</p>
+        </header>
+
+        <div class="space-y-6">
+            <!-- Step 1: Login -->
+            <div id="step-login" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">1</div>
+                    <h2 class="text-xl font-semibold">API Login</h2>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="server" placeholder="Server (e.g., my.geotab.com)" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="my.geotab.com">
+                    <input type="text" id="database" placeholder="Database Name" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="username" placeholder="Username" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="button" id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Login</button>
+                    <p id="login-error" class="text-red-400 text-center h-4"></p>
+                </div>
+                 <div class="text-right mt-4">
+                    <button id="logout-button" class="hidden text-sm text-blue-400 hover:text-blue-300">Logout</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Search -->
+            <div id="step-search" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">2</div>
+                    <h2 class="text-xl font-semibold">Vehicle Lookup</h2>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="vehicle-id" placeholder="Enter VIN or Serial Number" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="button" id="search-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Fetch Details</button>
+                </div>
+                <p id="search-error" class="text-red-400 text-center h-4 mt-3"></p>
+                <div id="search-spinner" class="hidden flex justify-center items-center p-4"><div class="spinner w-8 h-8 rounded-full border-4 border-gray-600"></div></div>
+            </div>
+            
+            <!-- Step 3: Pre-Script Checks -->
+            <div id="step-checks" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                 <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">3</div>
+                    <h2 class="text-xl font-semibold">Pre-Script Checks</h2>
+                </div>
+                <div id="vehicle-info" class="mb-4 text-gray-300 border-b border-gray-700 pb-4"></div>
+                <div class="space-y-3">
+                    <h4 class="font-semibold">System Status:</h4>
+                    <div id="check-ignition" class="flex justify-between items-center bg-gray-700 p-3 rounded-md"></div>
+                    <div id="check-rateplan" class="flex justify-between items-center bg-gray-700 p-3 rounded-md"></div>
+                </div>
+                <p id="checks-error" class="text-red-400 text-center h-4 mt-3"></p>
+            </div>
+
+            <!-- Step 4: Update Configuration -->
+            <div id="step-update" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">4</div>
+                    <h2 class="text-xl font-semibold">Push Spreader Configuration</h2>
+                </div>
+                <p class="text-sm text-gray-400 mb-3">Enter the config value to send to the IOX-WRKS device.</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="config-value" placeholder="Enter Configuration Value" required class="flex-grow bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="292641311">
+                    <button type="button" id="send-config-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Send Configuration</button>
+                </div>
+                <p id="update-status" class="text-center h-5 mt-3"></p>
+            </div>
+            
+            <!-- Step 5: Final Verification -->
+            <div id="step-verify" class="step-card bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+                 <div class="flex items-center mb-4">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4">5</div>
+                    <h2 class="text-xl font-semibold">Final Verification</h2>
+                </div>
+                <p class="text-gray-400 mb-4">After the device updates, re-fetch diagnostics to confirm the new configuration has been applied.</p>
+                <button type="button" id="verify-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition duration-300">Re-Fetch Diagnostics</button>
+                <div id="verify-spinner" class="hidden flex justify-center items-center p-4"><div class="spinner w-8 h-8 rounded-full border-4 border-gray-600"></div></div>
+                <div id="diagnostic-results" class="mt-4 space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Name Change Modal -->
+    <div id="asset-name-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-sm">
+            <div class="p-6">
+                <h3 class="font-semibold text-lg text-center">Update Asset Name?</h3>
+                <p class="text-gray-400 text-sm text-center mt-2">The current asset name is "<span id="current-asset-name" class="font-bold"></span>". Would you like to change it?</p>
+                
+                <div id="asset-name-prompt" class="mt-6 flex justify-center gap-4">
+                    <button id="asset-name-no" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition">No, Keep It</button>
+                    <button id="asset-name-yes" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition">Yes, Change It</button>
+                </div>
+
+                <div id="asset-name-form" class="hidden mt-4 space-y-3">
+                     <input type="text" id="new-asset-name" class="w-full bg-gray-700 text-white p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                     <button id="save-asset-name" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition">Save New Name</button>
+                     <p id="asset-name-status" class="text-center h-4"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Geotab API Wrapper ---
+        class GeotabApi {
+            constructor() {
+                this.server = null;
+                this.credentials = null;
+            }
+            async call(method, params) {
+                if (!this.server) throw new Error("Server not set.");
+                const finalParams = (method === 'Authenticate') ? params : { ...(params || {}), credentials: this.credentials };
+                const requestBody = JSON.stringify({ method, params: finalParams });
+                const url = `https://${this.server}/api/v1`;
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `JSON-RPC=${encodeURIComponent(requestBody)}` });
+                    if (!response.ok) throw new Error(`Network response: ${response.status} ${response.statusText}`);
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message || 'Unknown API error.');
+                    return data.result;
+                } catch (error) { console.error("API Call failed:", error); throw error; }
+            }
+            async get(typeName, params) { return this.call('Get', { typeName, ...params }); }
+            async set(typeName, entity) { return this.call('Set', { typeName, entity }); }
+            async authenticate(server, database, userName, password) {
+                this.server = server;
+                this.credentials = null;
+                const result = await this.call('Authenticate', { database, userName, password });
+                if (result && result.credentials) {
+                    this.credentials = result.credentials;
+                    sessionStorage.setItem('geotab_creds', JSON.stringify({ server, credentials: result.credentials }));
+                    return result.credentials;
+                }
+                throw new Error('Authentication failed');
+            }
+            async sendTextMessage(deviceId, message) {
+                const textMessage = { device: { id: deviceId }, messageContent: { contentType: 'Custom', message }, isDirectionToVehicle: true };
+                return this.call('Add', { typeName: 'TextMessage', entity: textMessage });
+            }
+            logout() {
+                this.credentials = null; this.server = null; sessionStorage.removeItem('geotab_creds');
+            }
+        }
+
+        const api = new GeotabApi();
+        let appState = {
+            device: null,
+            ignitionOn: false,
+            ratePlanValid: false,
+        };
+
+        const DIAGNOSTICS_TO_CHECK = {
+            'IOX Spreader Config': ['DiagnosticIoxWrksSpreaderControllerConfigFileId'],
+            'Plow': ['DiagnosticAux6Id', 'DiagnosticThirdPartyAux6Id'],
+            'Wing Plow': ['DiagnosticAux7Id', 'DiagnosticThirdPartyAux7Id'],
+        };
+        const VALID_RATE_PLANS = ["goplancustom", "propluspublicworks"];
+
+
+        // --- DOM Elements ---
+        const steps = {
+            login: document.getElementById('step-login'),
+            search: document.getElementById('step-search'),
+            checks: document.getElementById('step-checks'),
+            update: document.getElementById('step-update'),
+            verify: document.getElementById('step-verify'),
+        };
+        const assetNameModal = {
+            backdrop: document.getElementById('asset-name-modal'),
+            prompt: document.getElementById('asset-name-prompt'),
+            form: document.getElementById('asset-name-form'),
+            currentName: document.getElementById('current-asset-name'),
+            newNameInput: document.getElementById('new-asset-name'),
+            status: document.getElementById('asset-name-status'),
+        };
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Login/Logout
+            document.getElementById('login-button').addEventListener('click', handleLogin);
+            document.getElementById('logout-button').addEventListener('click', handleLogout);
+            // Search
+            document.getElementById('search-button').addEventListener('click', handleSearch);
+            // Asset Name Modal
+            document.getElementById('asset-name-no').addEventListener('click', () => showNextStep('checks'));
+            document.getElementById('asset-name-yes').addEventListener('click', () => {
+                assetNameModal.prompt.classList.add('hidden');
+                assetNameModal.form.classList.remove('hidden');
+            });
+            document.getElementById('save-asset-name').addEventListener('click', handleSaveAssetName);
+            // Main Workflow
+            document.getElementById('send-config-button').addEventListener('click', handleSendConfig);
+            document.getElementById('verify-button').addEventListener('click', handleVerify);
+            checkSession();
+        });
+
+        // --- UI Control ---
+        function showStep(stepName) {
+            Object.values(steps).forEach(step => step.classList.add('hidden'));
+            if (steps[stepName]) steps[stepName].classList.remove('hidden');
+        }
+        function showNextStep(stepName) {
+            assetNameModal.backdrop.classList.add('hidden');
+            showStep(stepName);
+            if (stepName === 'checks') performChecks();
+        }
+
+        // --- Main Handlers ---
+        async function handleLogin() {
+            const button = document.getElementById('login-button');
+            const errorP = document.getElementById('login-error');
+            button.disabled = true; button.textContent = 'Logging in...'; errorP.textContent = '';
+            try {
+                await api.authenticate(
+                    document.getElementById('server').value,
+                    document.getElementById('database').value,
+                    document.getElementById('username').value,
+                    document.getElementById('password').value
+                );
+                document.getElementById('logout-button').classList.remove('hidden');
+                showStep('search');
+            } catch (error) {
+                errorP.textContent = `Login Failed: ${error.message}`;
+            } finally {
+                button.disabled = false; button.textContent = 'Login';
+            }
+        }
+        
+        function handleLogout() {
+            api.logout();
+            appState = { device: null, ignitionOn: false, ratePlanValid: false };
+            document.getElementById('logout-button').classList.add('hidden');
+            showStep('login');
+        }
+
+        async function handleSearch() {
+            const button = document.getElementById('search-button');
+            const spinner = document.getElementById('search-spinner');
+            const errorP = document.getElementById('search-error');
+            button.disabled = true; spinner.classList.remove('hidden'); errorP.textContent = '';
+            
+            try {
+                const vehicleId = document.getElementById('vehicle-id').value.trim();
+                const devices = await api.get('Device', { search: { or: [{ serialNumber: vehicleId }, { vehicleIdentificationNumber: vehicleId }] } });
+                if (!devices || !devices.length) throw new Error(`No device found for "${vehicleId}"`);
+                appState.device = devices[0];
+
+                assetNameModal.currentName.textContent = appState.device.name;
+                assetNameModal.newNameInput.value = appState.device.name;
+                assetNameModal.prompt.classList.remove('hidden');
+                assetNameModal.form.classList.add('hidden');
+                assetNameModal.status.textContent = '';
+                assetNameModal.backdrop.classList.remove('hidden');
+
+            } catch (error) {
+                errorP.textContent = `Search Failed: ${error.message}`;
+            } finally {
+                button.disabled = false; spinner.classList.add('hidden');
+            }
+        }
+        
+        async function handleSaveAssetName() {
+            const button = document.getElementById('save-asset-name');
+            const newName = assetNameModal.newNameInput.value.trim();
+            button.disabled = true; assetNameModal.status.textContent = 'Saving...';
+            try {
+                appState.device.name = newName;
+                await api.set('Device', appState.device);
+                assetNameModal.status.textContent = 'Saved successfully!';
+                setTimeout(() => showNextStep('checks'), 1500);
+            } catch (error) {
+                assetNameModal.status.textContent = `Error: ${error.message}`;
+                button.disabled = false;
+            }
+        }
+
+        async function performChecks() {
+            const ignitionDiv = document.getElementById('check-ignition');
+            const rateplanDiv = document.getElementById('check-rateplan');
+            const errorP = document.getElementById('checks-error');
+            ignitionDiv.innerHTML = `<span>Ignition Status</span> <span class="font-bold">Checking...</span>`;
+            rateplanDiv.innerHTML = `<span>Rate Plan</span> <span class="font-bold">Checking...</span>`;
+            errorP.textContent = '';
+            
+            try {
+                // Fetch ignition and plan details in parallel
+                const [statusData, fullDevice] = await Promise.all([
+                    api.get('StatusData', { search: { deviceSearch: { id: appState.device.id }, diagnosticSearch: { id: 'DiagnosticIgnitionId' } } }),
+                    api.get('Device', { resultsLimit: 1, search: { id: appState.device.id } })
+                ]);
+                
+                // Update vehicle info display
+                document.getElementById('vehicle-info').innerHTML = `<p><strong>Name:</strong> ${fullDevice[0].name}</p><p><strong>VIN:</strong> ${fullDevice[0].vehicleIdentificationNumber || 'N/A'}</p>`;
+
+                // Check Ignition
+                appState.ignitionOn = statusData?.[0]?.data === true;
+                ignitionDiv.innerHTML = `<span>Ignition Status</span> <span class="font-bold ${appState.ignitionOn ? 'text-green-400' : 'text-red-400'}">${appState.ignitionOn ? 'ON' : 'OFF'}</span>`;
+
+                // Check Rate Plan
+                const planId = fullDevice[0].plan?.id?.toLowerCase();
+                appState.ratePlanValid = VALID_RATE_PLANS.includes(planId);
+                const planName = fullDevice[0].plan?.name || 'Unknown';
+                rateplanDiv.innerHTML = `<span>Rate Plan</span> <span class="font-bold ${appState.ratePlanValid ? 'text-green-400' : 'text-red-400'}">${planName}</span>`;
+
+                // Enable/disable next step
+                const sendButton = document.getElementById('send-config-button');
+                if (appState.ignitionOn && appState.ratePlanValid) {
+                    showStep('update');
+                    sendButton.disabled = false;
+                } else {
+                    errorP.textContent = "Cannot proceed. Both ignition ON and a valid rate plan are required.";
+                    sendButton.disabled = true;
+                    showStep('update'); // Still show the step, but with button disabled
+                }
+            } catch (error) {
+                errorP.textContent = `Error during checks: ${error.message}`;
+            }
+        }
+
+        async function handleSendConfig() {
+            const button = document.getElementById('send-config-button');
+            const statusP = document.getElementById('update-status');
+            const configValue = document.getElementById('config-value').value.trim();
+            const command = `set ControllerConfiguration ${configValue}`;
+
+            button.disabled = true; statusP.className = 'text-center h-5 mt-3 text-yellow-400'; statusP.textContent = 'Sending command...';
+            try {
+                await api.sendTextMessage(appState.device.id, command);
+                statusP.className = 'text-center h-5 mt-3 text-green-400';
+                statusP.textContent = 'Command sent successfully!';
+                setTimeout(() => showStep('verify'), 2000);
+            } catch (error) {
+                statusP.className = 'text-center h-5 mt-3 text-red-400';
+                statusP.textContent = `Error: ${error.message}`;
+                button.disabled = false;
+            }
+        }
+        
+        async function handleVerify() {
+            const button = document.getElementById('verify-button');
+            const spinner = document.getElementById('verify-spinner');
+            const resultsDiv = document.getElementById('diagnostic-results');
+            button.disabled = true; spinner.classList.remove('hidden'); resultsDiv.innerHTML = '';
+            
+            try {
+                const statusData = await api.get('StatusData', { search: { deviceSearch: { id: appState.device.id } } });
+                if (!statusData || statusData.length === 0) {
+                     resultsDiv.innerHTML = `<p class="text-center text-yellow-400">No diagnostic data has been recorded yet.</p>`;
+                } else {
+                    const foundDataMap = new Map(statusData.map(item => [item.diagnostic.id, item]));
+                    Object.entries(DIAGNOSTICS_TO_CHECK).forEach(([name, ids]) => {
+                        let foundItem = null;
+                        for (const id of ids) { if (foundDataMap.has(id)) { foundItem = foundDataMap.get(id); break; } }
+                        const value = foundItem ? `${foundItem.data} <span class="text-xs text-gray-400">(${new Date(foundItem.dateTime).toLocaleString()})</span>` : 'Not Found';
+                        const color = foundItem ? 'text-green-400' : 'text-yellow-400';
+                        resultsDiv.innerHTML += `<div class="flex justify-between items-center bg-gray-700 p-3 rounded-md"><span>${name}</span><span class="font-bold ${color}">${value}</span></div>`;
+                    });
+                }
+            } catch (error) {
+                 resultsDiv.innerHTML = `<p class="text-center text-red-400">Error fetching diagnostics: ${error.message}</p>`;
+            } finally {
+                button.disabled = false; spinner.classList.add('hidden');
+            }
+        }
+        
+        function checkSession() {
+            const storedCreds = sessionStorage.getItem('geotab_creds');
+            if (storedCreds) {
+                try {
+                    const { server, credentials } = JSON.parse(storedCreds);
+                    api.server = server; api.credentials = credentials;
+                    document.getElementById('logout-button').classList.remove('hidden');
+                    showStep('search');
+                } catch (e) {
+                    sessionStorage.removeItem('geotab_creds');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
